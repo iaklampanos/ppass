@@ -1,0 +1,63 @@
+# ppass configuration file template
+# Copy this to ~/.ppassrc and customize with your values
+# Run 'ppass --setup' for an interactive configuration wizard.
+
+# ---------------------------------------------------------------------------
+# Volume backend
+# ---------------------------------------------------------------------------
+# hdiutil   — macOS only; mounts .sparsebundle/.dmg via hdiutil (default on macOS)
+# veracrypt — cross-platform; mounts a VeraCrypt container on macOS and Linux
+VOLUME_BACKEND=hdiutil
+
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
+
+# Path to the encrypted volume image file.
+# hdiutil example:   ~/cloud/ppass.sparsebundle
+# veracrypt example: ~/cloud/ppass.vc
+IMAGE_PATH=~/onedrv/ppassImg.sparsebundle
+
+# Mount point for the encrypted volume (directory must exist or ppass will
+# create it when using the veracrypt backend).
+VOLUME_PATH=/Volumes/ppassImg
+
+# Password store path inside the encrypted volume
+STORE_PATH=.password-store
+
+# ---------------------------------------------------------------------------
+# Behaviour
+# ---------------------------------------------------------------------------
+
+# Inactivity timeout in seconds before auto-unmount (default 300 = 5 minutes)
+UNMOUNT_TIMEOUT=300
+
+# Automatically unmount on inactivity (true/false)
+AUTO_UNMOUNT=true
+
+# Maximum retries for mount operations
+MAX_RETRIES=3
+
+# ---------------------------------------------------------------------------
+# hdiutil-specific options (ignored when VOLUME_BACKEND=veracrypt)
+# ---------------------------------------------------------------------------
+
+# Show the mounted volume in Finder (true/false)
+SHOW_IN_FINDER=true
+
+# ---------------------------------------------------------------------------
+# VeraCrypt-specific options (only relevant when VOLUME_BACKEND=veracrypt)
+# ---------------------------------------------------------------------------
+
+# Path to the veracrypt binary.
+# macOS default (Homebrew cask): veracrypt
+# Linux default:                 veracrypt
+# Override if the binary is not on PATH.
+# VERACRYPT_PATH=veracrypt
+
+# ---------------------------------------------------------------------------
+# Debugging
+# ---------------------------------------------------------------------------
+
+# Enable verbose output (true/false)
+VERBOSE=false
