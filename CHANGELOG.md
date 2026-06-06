@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.6.1]
+
+### Tests
+- Added `tests/test_integration.py` with four lifecycle integration tests
+  (`TestVeraCryptLifecycle`): mount-state tracking, secret persistence across
+  unmount/remount, multiple categories, and `PASSWORD_STORE_DIR` wiring.
+  All pass on macOS (Python 3.14) and Linux (Python 3.12) without requiring
+  any external tools — only the veracrypt binary is mocked.
+- Fixed `test_platform_selection_linux` to assert `RuntimeError` (Linux now
+  requires `VOLUME_BACKEND=veracrypt`).
+- Fixed `test_platform_unsupported` to use a truly unsupported OS (`SunOS`)
+  rather than Windows, which now returns a `WindowsPlatform` stub.
+- Added `TestVeraCryptPlatform` (14 tests, 94% coverage) and
+  `TestWindowsPlatform` (4 tests, 100% coverage).
+- Added backend-selection tests for Linux+veracrypt, macOS+veracrypt,
+  macOS+unknown backend, and Windows stub.
+- Added CLI tests: mount success, unmount failure, status not mounted,
+  verbose flag.
+- Added config round-trip tests for `volume_backend` and `veracrypt_path`.
+- Overall unit-test coverage: 68% → 76%; 74 tests, all passing.
+
+### Documentation
+- README: fixed GitHub URLs, updated installation to `pipx`, added VeraCrypt
+  requirements and backend section, updated configuration and development
+  sections, revised limitations and future enhancements.
+
 ## [0.6.0]
 
 ### Added
