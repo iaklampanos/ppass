@@ -141,3 +141,4 @@ cl_key.txt
 
 # Claude Code local settings
 .claude/
+*.deb
