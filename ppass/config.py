@@ -109,7 +109,7 @@ def save_config(config: Config, config_path: Optional[str] = None) -> None:
     
     lines = [
         "# ppass configuration file",
-        "# See https://github.com/yourusername/ppass for documentation",
+        "# See https://github.com/iaklampanos/ppass for documentation",
         "",
         "# Volume backend: 'hdiutil' (macOS sparsebundle/dmg) or 'veracrypt' (cross-platform)",
         f"VOLUME_BACKEND={config.volume_backend}",

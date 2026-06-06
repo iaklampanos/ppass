@@ -31,19 +31,52 @@ class TestVolumeManager(unittest.TestCase):
         self.assertEqual(vm.platform.volume_path, "/Volumes/Test")
 
     @patch("ppass.core.volume.platform.system")
-    def test_platform_selection_linux(self, mock_system):
-        """Test Linux platform selection."""
+    def test_platform_selection_linux_requires_veracrypt(self, mock_system):
+        """Linux without an explicit backend raises RuntimeError with guidance."""
         mock_system.return_value = "Linux"
-        vm = VolumeManager("/mnt/test")
-        
-        self.assertIsNotNone(vm.platform)
+        with self.assertRaises(RuntimeError) as ctx:
+            VolumeManager("/mnt/test")
+        self.assertIn("veracrypt", str(ctx.exception).lower())
+
+    @patch("ppass.core.volume.platform.system")
+    @patch("subprocess.run")
+    def test_platform_selection_linux_with_veracrypt(self, mock_run, mock_system):
+        """Linux + volume_backend='veracrypt' creates a VeraCryptPlatform."""
+        mock_system.return_value = "Linux"
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+        from ppass.platform.veracrypt import VeraCryptPlatform
+        vm = VolumeManager("/mnt/vc", volume_backend="veracrypt")
+        self.assertIsInstance(vm.platform, VeraCryptPlatform)
+
+    @patch("ppass.core.volume.platform.system")
+    @patch("subprocess.run")
+    def test_platform_selection_macos_veracrypt(self, mock_run, mock_system):
+        """macOS + volume_backend='veracrypt' creates a VeraCryptPlatform."""
+        mock_system.return_value = "Darwin"
+        mock_run.return_value = MagicMock(returncode=0, stdout="")
+        from ppass.platform.veracrypt import VeraCryptPlatform
+        vm = VolumeManager("/mnt/vc", volume_backend="veracrypt")
+        self.assertIsInstance(vm.platform, VeraCryptPlatform)
+
+    @patch("ppass.core.volume.platform.system")
+    def test_platform_selection_macos_unknown_backend(self, mock_system):
+        """macOS with an unknown backend string raises RuntimeError."""
+        mock_system.return_value = "Darwin"
+        with self.assertRaises(RuntimeError):
+            VolumeManager("/Volumes/test", volume_backend="truecrypt")
 
     @patch("ppass.core.volume.platform.system")
     def test_platform_unsupported(self, mock_system):
-        """Test unsupported platform raises error."""
-        mock_system.return_value = "Windows"
-        
+        """A truly unsupported OS raises RuntimeError."""
+        mock_system.return_value = "SunOS"
         with self.assertRaises(RuntimeError):
+            VolumeManager("/path/to/volume")
+
+    @patch("ppass.core.volume.platform.system")
+    def test_platform_selection_windows(self, mock_system):
+        """Windows stub raises NotImplementedError when any method is called."""
+        mock_system.return_value = "Windows"
+        with self.assertRaises(NotImplementedError):
             VolumeManager("/path/to/volume")
 
     def test_ensure_mounted(self):

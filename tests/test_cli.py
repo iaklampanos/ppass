@@ -75,6 +75,42 @@ class TestCli(unittest.TestCase):
             self.assertEqual(main(["show", "github"]), 1)
         mock_pw_cls.return_value.execute.assert_not_called()
 
+    @patch("ppass.cli.spawn_watcher")
+    @patch("ppass.cli.VolumeManager")
+    def test_mount_success(self, mock_vm_cls, mock_watcher):
+        """`ppass mount` returns 0 and spawns the watcher on success."""
+        mock_vm_cls.return_value.mount.return_value = True
+
+        with patch("ppass.cli.load_config", return_value=_config(auto_unmount=True)):
+            self.assertEqual(main(["mount"]), 0)
+        mock_watcher.assert_called_once()
+
+    @patch("ppass.cli.VolumeManager")
+    def test_unmount_failure(self, mock_vm_cls):
+        """`ppass unmount` returns 1 when the platform fails to unmount."""
+        mock_vm_cls.return_value.unmount.return_value = False
+
+        with patch("ppass.cli.load_config", return_value=_config()):
+            self.assertEqual(main(["unmount"]), 1)
+
+    @patch("ppass.cli.VolumeManager")
+    def test_status_not_mounted(self, mock_vm_cls):
+        """`ppass status` exits 0 even when the volume is not mounted."""
+        mock_vm_cls.return_value.is_mounted.return_value = False
+
+        with patch("ppass.cli.load_config", return_value=_config()):
+            self.assertEqual(main(["status"]), 0)
+
+    @patch("ppass.cli.PassWrapper")
+    @patch("ppass.cli.VolumeManager")
+    def test_verbose_flag(self, mock_vm_cls, mock_pw_cls):
+        """`--verbose` is accepted without error."""
+        mock_vm_cls.return_value.ensure_mounted.return_value = True
+        mock_pw_cls.return_value.execute.return_value = (0, "", "")
+
+        with patch("ppass.cli.load_config", return_value=_config()):
+            self.assertEqual(main(["--verbose", "show", "test"]), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

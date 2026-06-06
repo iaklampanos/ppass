@@ -58,9 +58,29 @@ class TestConfig(unittest.TestCase):
         """Test loading nonexistent config file uses defaults."""
         nonexistent_path = os.path.join(self.temp_dir, "nonexistent.yml")
         config = load_config(nonexistent_path)
-        
+
         self.assertEqual(config.volume_path, "")
         self.assertEqual(config.store_path, ".password-store")
+
+    def test_config_volume_backend_defaults(self):
+        """volume_backend defaults to empty string; veracrypt_path to 'veracrypt'."""
+        config = Config(volume_path="/Volumes/Test")
+        self.assertEqual(config.volume_backend, "")
+        self.assertEqual(config.veracrypt_path, "veracrypt")
+
+    def test_save_and_load_veracrypt_config(self):
+        """volume_backend and veracrypt_path round-trip through save/load."""
+        config = Config(
+            volume_path="/mnt/vc",
+            image_path="/cloud/store.vc",
+            volume_backend="veracrypt",
+            veracrypt_path="/usr/local/bin/veracrypt",
+        )
+        save_config(config, self.config_path)
+        loaded = load_config(self.config_path)
+        self.assertEqual(loaded.volume_backend, "veracrypt")
+        self.assertEqual(loaded.veracrypt_path, "/usr/local/bin/veracrypt")
+        self.assertEqual(loaded.image_path, "/cloud/store.vc")
 
 
 if __name__ == "__main__":

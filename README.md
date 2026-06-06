@@ -4,29 +4,32 @@ A modular Python wrapper around the `pass` password manager that automatically m
 
 ## Features
 
-- **Automatic Volume Management**: Mounts encrypted volumes when needed
-- **Auto-unmount**: Automatically unmounts volumes after 5 minutes of inactivity
-- **Pass Integration**: Works exactly like `pass` - transparent command proxying
-- **Modular Design**: Easy to extend with Linux and other platform support
-- **Activity Tracking**: Keeps volumes mounted only when actively in use
-- **No External Dependencies**: Uses native system tools (diskutil, hdiutil on macOS)
+- **Two volume backends**: native macOS sparsebundle/dmg via `hdiutil`, or cross-platform VeraCrypt containers
+- **Same container on all machines**: VeraCrypt volumes on a cloud drive work identically on macOS and Linux
+- **Automatic Volume Management**: Mounts encrypted volumes on demand
+- **Auto-unmount**: Automatically unmounts after a configurable inactivity timeout (default 5 minutes)
+- **Pass Integration**: Transparent `pass` command proxying — use it exactly like `pass`
+- **Activity Tracking**: Keeps volumes mounted only while actively in use
+- **No extra runtime dependencies**: native backend uses macOS system tools; VeraCrypt backend only requires the `veracrypt` CLI
 
 ## Requirements
 
-- macOS 10.12+ (primary target) or Linux
-- `pass` password manager installed (`brew install pass`)
 - Python 3.9+
-- An encrypted volume (APFS or other macOS-supported format)
+- `pass` password manager (`brew install pass` on macOS)
+- **hdiutil backend** (macOS only): no extra tools — uses system `hdiutil`/`diskutil`
+- **VeraCrypt backend** (macOS + Linux): `veracrypt` CLI installed
+  - macOS: `brew install --cask veracrypt`
+  - Linux: package manager or [veracrypt.fr](https://veracrypt.fr/en/Downloads.html)
 
 ## Installation
 
 ```bash
-git clone https://github.com/yourusername/ppass.git
+git clone https://github.com/iaklampanos/ppass.git
 cd ppass
-pip install -e .
+pipx install -e .
 ```
 
-This will install ppass and make the `ppass` command available globally.
+`pipx` installs ppass in an isolated environment and puts the `ppass` command on your PATH. If you don't have `pipx`: `brew install pipx && pipx ensurepath`.
 
 ## Quick Start
 
@@ -75,14 +78,17 @@ ppass --unmount
 
 ## Configuration
 
-Configuration is stored in `~/.ppassrc`. After running `ppass --setup`, you can also edit it manually:
+Run `ppass --setup` for an interactive wizard, or edit `~/.ppassrc` directly (mode 0600 — owner-only).
 
 ```bash
-# ppass configuration file (~/.ppassrc)
-# See https://github.com/yourusername/ppass for documentation
+# Volume backend: 'hdiutil' (macOS sparsebundle/dmg) or 'veracrypt' (cross-platform)
+VOLUME_BACKEND=hdiutil
 
-# Path to the encrypted volume
-VOLUME_PATH=/Volumes/PasswordVault
+# Path to the encrypted volume image file
+IMAGE_PATH=~/cloud/ppass.sparsebundle   # or ~/cloud/ppass.vc for VeraCrypt
+
+# Mount point for the encrypted volume
+VOLUME_PATH=/Volumes/ppass
 
 # Password store path inside the encrypted volume
 STORE_PATH=.password-store
@@ -95,9 +101,37 @@ AUTO_UNMOUNT=true
 
 # Maximum retries for mount operations
 MAX_RETRIES=3
+
+# --- hdiutil-specific ---
+# Show the mounted volume in Finder (true/false)
+SHOW_IN_FINDER=true
+
+# --- VeraCrypt-specific ---
+# Path to the veracrypt binary (override if not on PATH)
+# VERACRYPT_PATH=veracrypt
 ```
 
-Configuration file is readable/writable only by the owner (mode 0600) for security.
+See `.ppassrc.template` in the repository for a fully commented example.
+
+## VeraCrypt Backend
+
+VeraCrypt containers (`.vc` files) work identically on macOS and Linux, making them ideal for a password store on a cloud drive shared across machines.
+
+```bash
+# 1. Create a VeraCrypt container (using the VeraCrypt GUI or CLI)
+#    and place it on your cloud drive, e.g. ~/Dropbox/ppass.vc
+
+# 2. Configure ppass
+ppass --setup
+# → choose 'veracrypt' as backend
+# → set IMAGE_PATH to ~/Dropbox/ppass.vc
+# → set VOLUME_PATH to /Volumes/ppass (macOS) or ~/mnt/ppass (Linux)
+
+# 3. Use normally — ppass prompts for your VeraCrypt passphrase on first mount
+ppass show email/gmail
+```
+
+The passphrase is read via a hidden prompt and piped to `veracrypt --stdin`, so it never appears in the process list.
 
 ## How It Works
 
@@ -147,34 +181,26 @@ See `ppass/platform/linux.py` for an example Linux implementation.
 
 ## Development
 
-### Running Tests
+Dev tools (pytest, black, mypy, flake8, isort) are installed into the pipx environment alongside ppass:
 
 ```bash
-# Install dev dependencies
-pip install -e ".[dev]"
-
 # Run tests
-pytest
+~/.local/pipx/venvs/ppass/bin/pytest
 
-# Run with coverage
-pytest --cov=ppass --cov-report=html
-```
-
-### Code Style
-
-```bash
 # Format code
-black ppass/ tests/
+~/.local/pipx/venvs/ppass/bin/black ppass/ tests/
 
 # Sort imports
-isort ppass/ tests/
+~/.local/pipx/venvs/ppass/bin/isort ppass/ tests/
 
 # Lint
-flake8 ppass/ tests/
+~/.local/pipx/venvs/ppass/bin/flake8 ppass/ tests/
 
 # Type checking
-mypy ppass/
+~/.local/pipx/venvs/ppass/bin/mypy ppass/
 ```
+
+Or activate the pipx venv first: `source ~/.local/pipx/venvs/ppass/bin/activate`, then use the tools directly.
 
 ## Troubleshooting
 
@@ -246,20 +272,17 @@ Volume /Volumes/PasswordVault: mounted
 
 ## Limitations
 
-- macOS support is primary; Linux support is planned
-- Requires the `pass` password manager to be installed
-- Encrypted volume must be pre-created (ppass doesn't create volumes)
-- Requires manual setup for each machine that will use ppass
+- Encrypted volume must be pre-created (ppass does not create volumes)
+- Requires manual setup on each machine
+- Windows support is stubbed but not yet implemented
 
 ## Future Enhancements
 
-- [ ] Linux support (placeholder code exists)
-- [ ] Interactive setup wizard improvements
+- [ ] Windows support (VeraCrypt + Git Bash + pass — stubs in `ppass/platform/windows.py`)
 - [ ] Shell completion scripts (bash, zsh, fish)
-- [ ] Daemon mode for persistent volume monitoring
-- [ ] Configuration profiles for different volumes
+- [ ] Sync status check before unmount (for cloud-backed volumes)
+- [ ] Configuration profiles for multiple volumes
 - [ ] Volume creation/formatting helpers
-- [ ] Sync status checking before unmount
 
 ## License
 
@@ -279,4 +302,4 @@ Contributions are welcome! Please ensure:
 
 ## Support
 
-For issues, questions, or suggestions, please open an issue on GitHub.
+For issues, questions, or suggestions, open an issue at https://github.com/iaklampanos/ppass.
