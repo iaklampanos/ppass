@@ -141,6 +141,14 @@ class TestSetup(unittest.TestCase):
             _handle_setup(cfg, None)
         self.assertEqual(cfg.unmount_timeout, 600)
 
+    def test_setup_keyboard_interrupt_exits_cleanly(self):
+        """Ctrl+C during setup prints a cancellation message and returns 1."""
+        from ppass.cli import _handle_setup
+        cfg = _config()
+        with patch("builtins.input", side_effect=KeyboardInterrupt):
+            rc = _handle_setup(cfg, None)
+        self.assertEqual(rc, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

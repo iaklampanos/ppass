@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.6.4]
+
+### Fixed
+- **`VeraCryptPlatform.get_device_identifier()` false positive on path prefix**
+  (`platform/veracrypt.py`): same substring-match bug fixed in `is_mounted()` in
+  0.6.3 was present in `get_device_identifier()` — `/mnt/vc` would incorrectly
+  match a line containing `/mnt/vc2`. Now uses token-based matching.  (This
+  method is currently dead code, but the inconsistency would silently misbehave
+  if it were ever called.)
+- **`VeraCryptPlatform.mount()` swallowed VeraCrypt error messages**
+  (`platform/veracrypt.py`): `capture_output=True` hid VeraCrypt's stderr (e.g.
+  "wrong password") during failed mount attempts, leaving users with no feedback.
+  Stderr is now printed to stdout on failure.
+- **Activity file world-readable** (`core/activity.py`): the per-volume
+  inactivity-timestamp file in `/tmp` was written with default umask permissions
+  (0o644), allowing any local user to manipulate the auto-unmount deadline.
+  `os.chmod(..., 0o600)` is now applied immediately after writing.
+- **`_handle_setup` traceback on Ctrl+C** (`cli.py`): pressing Ctrl+C during
+  the interactive setup wizard raised an unhandled `KeyboardInterrupt` and
+  printed a traceback. Now caught at the top of `_handle_setup`; exits cleanly
+  with "Setup cancelled." and return code 1.
+
+### Tests
+- Added `test_get_device_identifier_no_false_positive_on_path_prefix` for the
+  token-match fix in `get_device_identifier()`.
+- Added `test_mount_prints_stderr_on_failure` verifying VeraCrypt error messages
+  reach the user.
+- Added `test_activity_file_has_restricted_permissions` confirming 0o600 mode.
+- Added `test_setup_keyboard_interrupt_exits_cleanly` for the Ctrl+C fix.
+- Total: 84 tests, all passing; coverage 83%.
+
 ## [0.6.3]
 
 ### Fixed

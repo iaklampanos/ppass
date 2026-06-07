@@ -67,6 +67,7 @@ class ActivityTracker:
         try:
             with open(self._tracker_file, "w") as f:
                 f.write(str(self.last_activity))
+            os.chmod(self._tracker_file, 0o600)
         except IOError:
             pass  # Silently ignore write errors
 

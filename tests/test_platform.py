@@ -206,6 +206,29 @@ class TestVeraCryptPlatform(unittest.TestCase):
         mock_run.side_effect = FileNotFoundError
         self.assertIsNone(self.platform.get_device_identifier())
 
+    @patch("subprocess.run")
+    def test_get_device_identifier_no_false_positive_on_path_prefix(self, mock_run):
+        """A volume at /mnt/vc2 must not match a check for /mnt/vc."""
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout="3: /tmp/other.vc /mnt/vc2 ext4\n"
+        )
+        self.assertIsNone(self.platform.get_device_identifier())
+
+    @patch("subprocess.run")
+    @patch("getpass.getpass", return_value="wrongpass")
+    @patch("os.makedirs")
+    def test_mount_prints_stderr_on_failure(self, _makedirs, _getpass, mock_run):
+        """A failed mount forwards VeraCrypt's error message to stdout."""
+        import io
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=""),                          # is_mounted → False
+            MagicMock(returncode=1, stderr="Error: wrong password\n"),  # attach fails
+        ]
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            result = self.platform.mount()
+        self.assertFalse(result)
+        self.assertIn("wrong password", mock_out.getvalue())
+
 
 class TestWindowsPlatform(unittest.TestCase):
     """Windows stubs raise NotImplementedError on every method."""

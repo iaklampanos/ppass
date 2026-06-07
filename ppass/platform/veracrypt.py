@@ -101,6 +101,8 @@ class VeraCryptPlatform(BasePlatform):
                 text=True,
                 timeout=30,
             )
+            if result.returncode != 0 and result.stderr:
+                print(result.stderr.strip(), flush=True)
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
             print(f"Mount error: {e}", flush=True)
@@ -129,7 +131,7 @@ class VeraCryptPlatform(BasePlatform):
                 timeout=10,
             )
             for line in result.stdout.splitlines():
-                if self.volume_path in line:
+                if self.volume_path in line.split():
                     # Output format: "1: /path/to/container  /mountpoint  ..."
                     parts = line.split(":", 1)
                     if parts:

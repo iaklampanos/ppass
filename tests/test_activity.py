@@ -77,11 +77,25 @@ class TestActivityTracker(unittest.TestCase):
         """Test tracker reset."""
         tracker = ActivityTracker()
         initial = tracker.last_activity
-        
+
         time.sleep(0.1)
         tracker.reset()
-        
+
         self.assertGreater(tracker.last_activity, initial)
+
+    def test_activity_file_has_restricted_permissions(self):
+        """The activity file is created with 0o600 permissions."""
+        import stat
+        tracker = ActivityTracker(tracker_id="ppass_perms_unit_test")
+        tracker.record_activity()
+        try:
+            mode = os.stat(tracker._tracker_file).st_mode
+            self.assertEqual(stat.S_IMODE(mode), 0o600)
+        finally:
+            try:
+                os.remove(tracker._tracker_file)
+            except OSError:
+                pass
 
 
 if __name__ == "__main__":

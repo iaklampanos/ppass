@@ -244,7 +244,14 @@ def main(argv: Optional[list] = None) -> int:
 def _handle_setup(config, config_path: Optional[str]) -> int:
     """Handle the --setup interactive configuration."""
     import platform as _platform
+    try:
+        return _do_setup(config, config_path, _platform)
+    except KeyboardInterrupt:
+        print("\nSetup cancelled.", file=sys.stderr)
+        return 1
 
+
+def _do_setup(config, config_path, _platform) -> int:
     print("ppass Configuration Setup")
     print("=" * 40)
 
