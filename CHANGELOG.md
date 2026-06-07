@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.6.3]
+
+### Fixed
+- **`VeraCryptPlatform.is_mounted()` false positive on path prefix** (`platform/veracrypt.py`):
+  `volume_path in result.stdout` was a substring match, so `/mnt/vc` would
+  incorrectly match a line containing `/mnt/vc2`.  Now checks whether
+  `volume_path` appears as a whole whitespace-delimited token on any output
+  line.
+- **`ActivityTracker.start()` TOCTOU race** (`core/activity.py`):
+  The `_running` guard was checked outside the lock; two concurrent callers
+  could both pass it and each start a monitor thread.  Guard moved inside
+  `with self._lock`.
+- **`hashlib.md5` raises on FIPS-mode systems** (`core/volume.py`):
+  Added `usedforsecurity=False` so ppass initialises correctly on hardened
+  Linux environments where OpenSSL rejects MD5 by default.
+- **`_handle_setup` crashes on non-numeric timeout input** (`cli.py`):
+  The bare `int()` conversion now has a `try/except ValueError` that prints a
+  clear message and retains the previous value instead of raising an
+  unhandled exception.
+- **`hdiutil attach` error messages silenced** (`platform/macos.py`):
+  Removed `stderr=subprocess.DEVNULL` from the `hdiutil attach` call so
+  authentication failures and other errors are visible to the user.
+
+### Tests
+- Added `test_is_mounted_no_false_positive_on_path_prefix` for the
+  substring-match fix.
+- Added `TestSetup.test_invalid_timeout_input_keeps_default` and
+  `test_valid_timeout_input_is_applied` for the setup timeout guard.
+- Total: 80 tests, all passing; coverage 79% → 83%.
+
 ## [0.6.2]
 
 ### Fixed
