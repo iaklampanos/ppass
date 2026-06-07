@@ -112,5 +112,35 @@ class TestCli(unittest.TestCase):
             self.assertEqual(main(["--verbose", "show", "test"]), 0)
 
 
+class TestSetup(unittest.TestCase):
+    """Tests for the interactive --setup flow."""
+
+    def test_invalid_timeout_input_keeps_default(self):
+        """Non-numeric timeout input is rejected gracefully; default is kept."""
+        from ppass.cli import _handle_setup
+        cfg = _config(unmount_timeout=300)
+        responses = iter([
+            "hdiutil",  # backend
+            "",         # image path
+            "",         # volume path
+            "",         # store path
+            "notanumber",  # invalid timeout
+        ])
+        with patch("builtins.input", side_effect=responses), \
+             patch("ppass.cli.save_config"):
+            _handle_setup(cfg, None)
+        self.assertEqual(cfg.unmount_timeout, 300)
+
+    def test_valid_timeout_input_is_applied(self):
+        """A numeric timeout input updates the config."""
+        from ppass.cli import _handle_setup
+        cfg = _config(unmount_timeout=300)
+        responses = iter(["hdiutil", "", "", "", "600"])
+        with patch("builtins.input", side_effect=responses), \
+             patch("ppass.cli.save_config"):
+            _handle_setup(cfg, None)
+        self.assertEqual(cfg.unmount_timeout, 600)
+
+
 if __name__ == "__main__":
     unittest.main()

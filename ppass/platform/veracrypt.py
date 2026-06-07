@@ -59,7 +59,10 @@ class VeraCryptPlatform(BasePlatform):
                 text=True,
                 timeout=10,
             )
-            return self.volume_path in result.stdout
+            return any(
+                self.volume_path in line.split()
+                for line in result.stdout.splitlines()
+            )
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
 

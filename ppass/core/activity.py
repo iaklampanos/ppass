@@ -78,10 +78,9 @@ class ActivityTracker:
 
     def start(self) -> None:
         """Start the inactivity timeout monitor thread."""
-        if self._running:
-            return
-        
         with self._lock:
+            if self._running:
+                return
             self._running = True
             self._timeout_thread = threading.Thread(
                 target=self._timeout_monitor,

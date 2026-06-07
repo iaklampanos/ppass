@@ -85,7 +85,6 @@ class MacOSPlatform(BasePlatform):
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
                 timeout=30
             )
             return result.returncode == 0

@@ -59,7 +59,7 @@ class VolumeManager:
         # Initialize activity tracker with volume-specific tracking
         # Use volume path hash to create unique tracker ID for each volume
         import hashlib
-        tracker_id = f"ppass_{hashlib.md5(volume_path.encode()).hexdigest()[:8]}"
+        tracker_id = f"ppass_{hashlib.md5(volume_path.encode(), usedforsecurity=False).hexdigest()[:8]}"
         
         self.activity_tracker = ActivityTracker(
             inactivity_timeout=inactivity_timeout,

@@ -290,7 +290,14 @@ def _handle_setup(config, config_path: Optional[str]) -> int:
     timeout_input = input(
         f"Unmount timeout in seconds [{config.unmount_timeout}]: "
     ).strip()
-    unmount_timeout = int(timeout_input) if timeout_input else config.unmount_timeout
+    if timeout_input:
+        try:
+            unmount_timeout = int(timeout_input)
+        except ValueError:
+            print(f"Invalid timeout '{timeout_input}', keeping {config.unmount_timeout}s.")
+            unmount_timeout = config.unmount_timeout
+    else:
+        unmount_timeout = config.unmount_timeout
 
     # Update config
     config.image_path = image_path

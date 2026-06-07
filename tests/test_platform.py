@@ -128,6 +128,14 @@ class TestVeraCryptPlatform(unittest.TestCase):
         self.assertFalse(self.platform.is_mounted())
 
     @patch("subprocess.run")
+    def test_is_mounted_no_false_positive_on_path_prefix(self, mock_run):
+        """A volume mounted at /mnt/vc2 must not match a check for /mnt/vc."""
+        mock_run.return_value = MagicMock(
+            returncode=0, stdout="1: /tmp/other.vc /mnt/vc2\n"
+        )
+        self.assertFalse(self.platform.is_mounted())
+
+    @patch("subprocess.run")
     def test_is_mounted_veracrypt_not_found(self, mock_run):
         mock_run.side_effect = FileNotFoundError
         self.assertFalse(self.platform.is_mounted())
