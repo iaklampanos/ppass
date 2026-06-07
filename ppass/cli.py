@@ -23,7 +23,13 @@ def _start_unmount_watcher(config) -> None:
     auto-unmount is disabled or a watcher is already running.
     """
     if config.auto_unmount:
-        spawn_watcher(config.volume_path, config.image_path, config.unmount_timeout)
+        spawn_watcher(
+            config.volume_path,
+            config.image_path,
+            config.unmount_timeout,
+            config.volume_backend,
+            config.veracrypt_path,
+        )
 
 
 def _print_banner() -> None:

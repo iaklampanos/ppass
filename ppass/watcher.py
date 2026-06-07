@@ -81,7 +81,13 @@ def is_watcher_running(volume_path: str) -> bool:
     return False
 
 
-def spawn_watcher(volume_path: str, image_path: str, timeout: int) -> bool:
+def spawn_watcher(
+    volume_path: str,
+    image_path: str,
+    timeout: int,
+    volume_backend: str = "",
+    veracrypt_path: str = "veracrypt",
+) -> bool:
     """Spawn a detached unmount watcher for the volume, if one isn't running.
 
     Returns True if a watcher was spawned, False if one was already running
@@ -101,6 +107,10 @@ def spawn_watcher(volume_path: str, image_path: str, timeout: int) -> bool:
         image_path or "",
         "--timeout",
         str(timeout),
+        "--backend",
+        volume_backend or "",
+        "--veracrypt-path",
+        veracrypt_path or "veracrypt",
     ]
     try:
         subprocess.Popen(
@@ -155,7 +165,13 @@ def _watch_loop(vm: VolumeManager, poll_interval: float = _POLL_INTERVAL) -> Non
         time.sleep(max(0.5, min(remaining, poll_interval)))
 
 
-def run(volume_path: str, image_path: str, timeout: int) -> int:
+def run(
+    volume_path: str,
+    image_path: str,
+    timeout: int,
+    volume_backend: str = "",
+    veracrypt_path: str = "veracrypt",
+) -> int:
     """Run the watch loop for a volume under the per-volume lock."""
     lock = _acquire_lock(volume_path)
     if lock is None:
@@ -169,6 +185,8 @@ def run(volume_path: str, image_path: str, timeout: int) -> int:
             image_path=image_path,
             inactivity_timeout=timeout,
             auto_unmount=False,
+            volume_backend=volume_backend,
+            veracrypt_path=veracrypt_path,
         )
         _watch_loop(vm)
     finally:
@@ -181,8 +199,10 @@ def main(argv: Optional[list] = None) -> int:
     parser.add_argument("--volume", required=True, help="Volume mount point")
     parser.add_argument("--image", default="", help="Encrypted image path")
     parser.add_argument("--timeout", type=int, required=True, help="Inactivity timeout (seconds)")
+    parser.add_argument("--backend", default="", help="Volume backend (veracrypt or hdiutil)")
+    parser.add_argument("--veracrypt-path", default="veracrypt", help="Path to veracrypt binary")
     args = parser.parse_args(argv)
-    return run(args.volume, args.image, args.timeout)
+    return run(args.volume, args.image, args.timeout, args.backend, args.veracrypt_path)
 
 
 if __name__ == "__main__":

@@ -16,12 +16,14 @@ All filesystem operations (mkdir, open, read) are real. No external tools
 
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
 
 from ppass.core.pass_wrapper import PassWrapper
 from ppass.core.volume import VolumeManager
+from ppass.watcher import spawn_watcher
 
 
 class TestVeraCryptLifecycle(unittest.TestCase):
@@ -190,3 +192,60 @@ class TestVeraCryptLifecycle(unittest.TestCase):
             store_path,
             "PASSWORD_STORE_DIR must point to the store inside the mounted volume",
         )
+
+
+class TestSpawnWatcherArgs(unittest.TestCase):
+    """Verify that spawn_watcher forwards backend config to the child process."""
+
+    @patch("ppass.watcher.is_watcher_running", return_value=False)
+    @patch("ppass.watcher.subprocess.Popen")
+    def test_veracrypt_backend_forwarded(self, mock_popen, _running):
+        """spawn_watcher must pass --backend and --veracrypt-path to the child."""
+        mock_popen.return_value = MagicMock()
+        spawn_watcher(
+            volume_path="/mnt/vc",
+            image_path="/tmp/vault.vc",
+            timeout=300,
+            volume_backend="veracrypt",
+            veracrypt_path="/usr/local/bin/veracrypt",
+        )
+        self.assertTrue(mock_popen.called)
+        cmd = mock_popen.call_args[0][0]
+        self.assertIn("--backend", cmd)
+        self.assertEqual(cmd[cmd.index("--backend") + 1], "veracrypt")
+        self.assertIn("--veracrypt-path", cmd)
+        self.assertEqual(cmd[cmd.index("--veracrypt-path") + 1], "/usr/local/bin/veracrypt")
+
+    @patch("ppass.watcher.is_watcher_running", return_value=False)
+    @patch("ppass.watcher.subprocess.Popen")
+    def test_default_backend_forwarded(self, mock_popen, _running):
+        """spawn_watcher passes empty backend for the hdiutil default path."""
+        mock_popen.return_value = MagicMock()
+        spawn_watcher("/mnt/vol", "/tmp/vol.dmg", 60)
+        cmd = mock_popen.call_args[0][0]
+        self.assertIn("--backend", cmd)
+        self.assertEqual(cmd[cmd.index("--backend") + 1], "")
+
+    def test_run_uses_backend_for_veracrypt(self):
+        """watcher.run() must create VolumeManager with the correct backend.
+
+        On Linux, VolumeManager without volume_backend='veracrypt' raises
+        RuntimeError, so an import-time failure here means the fix is missing.
+        """
+        from ppass import watcher as w
+        captured = {}
+
+        class _FakeVM:
+            def __init__(self, **kwargs):
+                captured.update(kwargs)
+
+            def is_mounted(self):
+                return False
+
+        with patch.object(w, "VolumeManager", _FakeVM), \
+             patch.object(w, "_acquire_lock", return_value=MagicMock()), \
+             patch.object(w, "_watch_loop", return_value=None):
+            w.run("/mnt/vc", "/tmp/vault.vc", 300, "veracrypt", "/usr/bin/veracrypt")
+
+        self.assertEqual(captured.get("volume_backend"), "veracrypt")
+        self.assertEqual(captured.get("veracrypt_path"), "/usr/bin/veracrypt")
