@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.6.5]
+
+### Fixed
+- **Watcher crashes on FIPS-mode systems** (`watcher.py`): `_volume_key()` called
+  `hashlib.md5()` without `usedforsecurity=False`, causing an immediate `ValueError`
+  on hardened Linux systems where OpenSSL rejects MD5 by default.  The same fix was
+  applied to `core/volume.py` in 0.6.3 but missed here, making auto-unmount silently
+  broken on FIPS systems (the watcher process crashed at startup with its stderr
+  directed to `/dev/null`).
+
 ## [0.6.4]
 
 ### Fixed

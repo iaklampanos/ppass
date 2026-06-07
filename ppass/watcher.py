@@ -47,7 +47,7 @@ _UNMOUNT_BACKOFF = 2.0
 
 def _volume_key(volume_path: str) -> str:
     """Stable short id for a volume, matching ActivityTracker's scheme."""
-    return hashlib.md5(volume_path.encode()).hexdigest()[:8]
+    return hashlib.md5(volume_path.encode(), usedforsecurity=False).hexdigest()[:8]
 
 
 def _lockfile_path(volume_path: str) -> str:
