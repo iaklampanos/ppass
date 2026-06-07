@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.6.6]
+
+### Fixed
+- **`VeraCryptPlatform.mount()` leaves orphaned directory on auth failure**
+  (`platform/veracrypt.py`): if ppass created the mount-point directory and
+  VeraCrypt then rejected the passphrase, the empty directory was left behind.
+  The directory is now removed on failure when ppass was the one that created it.
+- **`MacOSPlatform.mount()` passes the mount-point path to `hdiutil`** when
+  `IMAGE_PATH` is unset (`platform/macos.py`): the code fell through to
+  `hdiutil attach <volume_path>`, which errors confusingly. Now prints a clear
+  message and returns `False` when no image path is configured.
+- **`MacOSPlatform.mount()` silenced `diskutil mount` errors** (`platform/macos.py`):
+  `stderr=subprocess.DEVNULL` removed from the APFS device-mount branch so
+  authentication failures are visible to the user.
+- **`LinuxPlatform.mount()` was a silent unencrypted bind-mount** (`platform/linux.py`):
+  the method called `["mount", volume_path]` with no encryption — completely wrong
+  for a VeraCrypt volume. Replaced with `NotImplementedError` so accidental use
+  fails loudly instead of silently mounting the wrong thing.
+- **`VERACRYPT_PATH` dropped from config on backend switch** (`config.py`):
+  `save_config()` only wrote `VERACRYPT_PATH` when `volume_backend == "veracrypt"`.
+  Switching back to `hdiutil` and then to `veracrypt` silently lost a custom binary
+  path. `VERACRYPT_PATH` is now always written.
+- **Watcher crash leaves no diagnostic** (`watcher.py`): the detached watcher
+  subprocess discarded stderr to `/dev/null`, so any crash (e.g. the FIPS bug
+  fixed in 0.6.5) produced no log. Stderr is now redirected to
+  `/tmp/.ppass_<hash>_watcher.log`, surviving between restarts and readable with
+  `cat`.
+- **Watcher lock file accumulates in `/tmp`** (`watcher.py`): the per-volume
+  `.ppass_<hash>_watcher.lock` file was never deleted. The lock file is now
+  unlinked in the `finally` block before releasing the lock, so it disappears on
+  clean exit.
+- **Unknown `VOLUME_BACKEND` reached deep into `VolumeManager`** (`cli.py`):
+  a typo in `~/.ppassrc` raised an unformatted `RuntimeError` inside
+  `VolumeManager.__init__`. The CLI now validates the backend before constructing
+  `VolumeManager` and prints a clear "use 'hdiutil' or 'veracrypt'" message.
+- **Only `RuntimeError` caught from `VolumeManager` init** (`cli.py`):
+  broadened to `except Exception` so `PermissionError`, `ImportError`, and other
+  unexpected failures also produce a clean error message rather than a traceback.
+- **`--setup` accepts relative image/volume paths without warning** (`cli.py`):
+  a relative path resolves against whatever the working directory is at mount time,
+  not the user's home. Setup now prints a warning when a non-absolute path is
+  entered.
+- **`pass generate` not in interactive-command list** (`core/pass_wrapper.py`):
+  added `generate` to the set of commands that pass through to a live terminal,
+  matching the behaviour of `insert`, `edit`, and `init`.
+
+### Tests
+- `TestMacOSPlatform`: fixed `test_mount_success` (now mocks the device so it
+  exercises the `diskutil` branch); added `test_mount_errors_without_image_path`.
+- `TestLinuxPlatform`: added `test_mount_raises_not_implemented`.
+- `TestVeraCryptPlatform`: added `test_mount_removes_created_dir_on_failure`.
+- `TestCli`: added `test_unknown_volume_backend_errors`.
+- Total: 88 tests, all passing; coverage 83% → 84%.
+
 ## [0.6.5]
 
 ### Fixed

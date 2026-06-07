@@ -135,12 +135,11 @@ def save_config(config: Config, config_path: Optional[str] = None) -> None:
         "# Maximum retries for mount operations",
         f"MAX_RETRIES={config.max_retries}",
     ]
-    if config.volume_backend == "veracrypt":
-        lines += [
-            "",
-            "# Path to the veracrypt binary (override if not on PATH)",
-            f"VERACRYPT_PATH={config.veracrypt_path}",
-        ]
+    lines += [
+        "",
+        "# Path to the veracrypt binary (override if not on PATH)",
+        f"VERACRYPT_PATH={config.veracrypt_path}",
+    ]
     
     with open(config_path, "w") as f:
         f.write("\n".join(lines))

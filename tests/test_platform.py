@@ -35,13 +35,10 @@ class TestMacOSPlatform(unittest.TestCase):
 
     @patch("subprocess.run")
     def test_mount_success(self, mock_run):
-        """Test successful volume mount."""
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_run.return_value = mock_result
-        
-        # Mock is_mounted to return False first, then True
-        with patch.object(self.platform, "is_mounted", side_effect=[False, True]):
+        """Test successful volume mount via diskutil (APFS device path)."""
+        mock_run.return_value = MagicMock(returncode=0)
+        with patch.object(self.platform, "is_mounted", return_value=False), \
+             patch.object(self.platform, "get_device_identifier", return_value="disk2"):
             self.assertTrue(self.platform.mount())
 
     @patch("subprocess.run")
@@ -52,6 +49,16 @@ class TestMacOSPlatform(unittest.TestCase):
         mock_run.return_value = mock_result
 
         self.assertTrue(self.platform.unmount())
+
+    def test_mount_errors_without_image_path(self):
+        """mount() returns False and prints an error when no image path is set."""
+        import io
+        with patch.object(self.platform, "is_mounted", return_value=False), \
+             patch.object(self.platform, "get_device_identifier", return_value=None), \
+             patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            result = self.platform.mount()
+        self.assertFalse(result)
+        self.assertIn("IMAGE_PATH", mock_out.getvalue())
 
     @patch("subprocess.run")
     def test_image_mount_visible_in_finder_omits_nobrowse(self, mock_run):
@@ -96,7 +103,7 @@ class TestLinuxPlatform(unittest.TestCase):
         mock_result = MagicMock()
         mock_result.returncode = 0
         mock_run.return_value = mock_result
-        
+
         self.assertTrue(self.platform.is_mounted())
 
     @patch("subprocess.run")
@@ -105,8 +112,13 @@ class TestLinuxPlatform(unittest.TestCase):
         mock_result = MagicMock()
         mock_result.returncode = 1
         mock_run.return_value = mock_result
-        
+
         self.assertFalse(self.platform.is_mounted())
+
+    def test_mount_raises_not_implemented(self):
+        """LinuxPlatform.mount() raises NotImplementedError."""
+        with self.assertRaises(NotImplementedError):
+            self.platform.mount()
 
 
 class TestVeraCryptPlatform(unittest.TestCase):
@@ -213,6 +225,22 @@ class TestVeraCryptPlatform(unittest.TestCase):
             returncode=0, stdout="3: /tmp/other.vc /mnt/vc2 ext4\n"
         )
         self.assertIsNone(self.platform.get_device_identifier())
+
+    @patch("subprocess.run")
+    @patch("getpass.getpass", return_value="wrongpass")
+    def test_mount_removes_created_dir_on_failure(self, _getpass, mock_run):
+        """An empty mount dir ppass created is removed when authentication fails."""
+        mock_run.side_effect = [
+            MagicMock(returncode=0, stdout=""),         # is_mounted → False
+            MagicMock(returncode=1, stderr=""),          # attach fails
+        ]
+        with patch("os.path.exists", return_value=False), \
+             patch("os.makedirs"), \
+             patch("os.rmdir") as mock_rmdir, \
+             patch("sys.stdout"):
+            result = self.platform.mount()
+        self.assertFalse(result)
+        mock_rmdir.assert_called_once_with(self.platform.volume_path)
 
     @patch("subprocess.run")
     @patch("getpass.getpass", return_value="wrongpass")

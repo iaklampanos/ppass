@@ -22,6 +22,11 @@ class TestCli(unittest.TestCase):
         with patch("ppass.cli.load_config", return_value=_config(volume_path="")):
             self.assertEqual(main([]), 1)
 
+    def test_unknown_volume_backend_errors(self):
+        """An unrecognised VOLUME_BACKEND exits 1 with a clear message."""
+        with patch("ppass.cli.load_config", return_value=_config(volume_backend="truecrypt")):
+            self.assertEqual(main([]), 1)
+
     @patch("ppass.cli.VolumeManager")
     def test_status_mounted(self, mock_vm_cls):
         """`ppass status` reports a mounted volume and exits 0."""

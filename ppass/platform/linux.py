@@ -48,26 +48,10 @@ class LinuxPlatform(BasePlatform):
             return False
 
     def mount(self) -> bool:
-        """
-        Mount the encrypted volume on Linux.
-
-        Returns:
-            True if successful, False otherwise
-        """
-        try:
-            if self.is_mounted():
-                return True
-
-            # Try standard mount
-            result = subprocess.run(
-                ["mount", self.volume_path],
-                capture_output=True,
-                text=True,
-                timeout=10
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return False
+        raise NotImplementedError(
+            "LinuxPlatform does not support mounting encrypted volumes. "
+            "Set VOLUME_BACKEND=veracrypt in ~/.ppassrc."
+        )
 
     def unmount(self) -> bool:
         """

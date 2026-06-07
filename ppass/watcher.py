@@ -112,14 +112,22 @@ def spawn_watcher(
         "--veracrypt-path",
         veracrypt_path or "veracrypt",
     ]
+    log_path = os.path.join(
+        tempfile.gettempdir(),
+        f".ppass_{_volume_key(volume_path)}_watcher.log",
+    )
     try:
-        subprocess.Popen(
-            cmd,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,  # detach from the ppass CLI's session
-        )
+        log_file = open(log_path, "a")
+        try:
+            subprocess.Popen(
+                cmd,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=log_file,
+                start_new_session=True,  # detach from the ppass CLI's session
+            )
+        finally:
+            log_file.close()  # parent closes its copy; child keeps its own fd
     except OSError:
         return False
     return True
@@ -177,6 +185,7 @@ def run(
     if lock is None:
         return 0  # another watcher already owns this volume; stand down
 
+    lock_path = _lockfile_path(volume_path)
     try:
         # auto_unmount=False: the watcher drives unmounting via its own loop and
         # must not start the (process-bound) timeout thread or re-spawn watchers.
@@ -190,6 +199,10 @@ def run(
         )
         _watch_loop(vm)
     finally:
+        try:
+            os.unlink(lock_path)  # unlink before releasing so no racing watcher opens it
+        except OSError:
+            pass
         lock.close()  # releases the flock (also released by the OS on exit)
     return 0
 

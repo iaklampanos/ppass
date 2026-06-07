@@ -153,6 +153,14 @@ def main(argv: Optional[list] = None) -> int:
     if not config.volume_path:
         print("Error: volume_path not configured. Run 'ppass --setup' first.", file=sys.stderr)
         return 1
+
+    if config.volume_backend and config.volume_backend.lower() not in ("hdiutil", "veracrypt"):
+        print(
+            f"Error: Unknown VOLUME_BACKEND '{config.volume_backend}' in ~/.ppassrc. "
+            "Use 'hdiutil' or 'veracrypt'.",
+            file=sys.stderr,
+        )
+        return 1
     
     # Initialize volume manager
     try:
@@ -166,7 +174,7 @@ def main(argv: Optional[list] = None) -> int:
             volume_backend=config.volume_backend,
             veracrypt_path=config.veracrypt_path,
         )
-    except RuntimeError as e:
+    except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         return 1
     
@@ -289,6 +297,11 @@ def _do_setup(config, config_path, _platform) -> int:
     volume_path = input(
         f"Mount point for the volume [{config.volume_path}]: "
     ).strip() or config.volume_path
+
+    if image_path and not os.path.isabs(image_path):
+        print(f"Warning: '{image_path}' is not an absolute path.", file=sys.stderr)
+    if volume_path and not os.path.isabs(volume_path):
+        print(f"Warning: '{volume_path}' is not an absolute path.", file=sys.stderr)
 
     store_path = input(
         f"Password store path inside volume [{config.store_path}]: "

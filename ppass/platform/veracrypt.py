@@ -85,6 +85,7 @@ class VeraCryptPlatform(BasePlatform):
         except (EOFError, KeyboardInterrupt):
             return False
 
+        dir_created = not os.path.exists(self.volume_path)
         try:
             os.makedirs(self.volume_path, exist_ok=True)
             result = subprocess.run(
@@ -101,11 +102,23 @@ class VeraCryptPlatform(BasePlatform):
                 text=True,
                 timeout=30,
             )
-            if result.returncode != 0 and result.stderr:
-                print(result.stderr.strip(), flush=True)
-            return result.returncode == 0
+            if result.returncode != 0:
+                if result.stderr:
+                    print(result.stderr.strip(), flush=True)
+                if dir_created:
+                    try:
+                        os.rmdir(self.volume_path)
+                    except OSError:
+                        pass
+                return False
+            return True
         except (subprocess.TimeoutExpired, FileNotFoundError) as e:
             print(f"Mount error: {e}", flush=True)
+            if dir_created:
+                try:
+                    os.rmdir(self.volume_path)
+                except OSError:
+                    pass
             return False
 
     def unmount(self) -> bool:

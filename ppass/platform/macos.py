@@ -69,15 +69,19 @@ class MacOSPlatform(BasePlatform):
                 result = subprocess.run(
                     ["diskutil", "mount", device],
                     stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
                     timeout=10
                 )
                 return result.returncode == 0
 
             # Try as a disk image mount (allow interactive password input)
-            # Use image_path if available, otherwise try volume_path
-            mount_source = self.image_path or self.volume_path
-            cmd = ["hdiutil", "attach", mount_source]
+            if not self.image_path:
+                print(
+                    "Error: IMAGE_PATH is required to mount a disk image on macOS. "
+                    "Set it in ~/.ppassrc.",
+                    flush=True,
+                )
+                return False
+            cmd = ["hdiutil", "attach", self.image_path]
             # -nobrowse hides the volume from Finder/Desktop. Only pass it when
             # the user has opted out of Finder visibility.
             if not self.show_in_finder:
