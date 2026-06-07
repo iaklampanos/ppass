@@ -44,8 +44,8 @@ class VolumeManager:
             volume_backend: "hdiutil" (macOS default) or "veracrypt"
             veracrypt_path: Path to veracrypt binary (default: "veracrypt")
         """
-        self.volume_path = volume_path
-        self.image_path = image_path
+        self.volume_path = os.path.expanduser(volume_path)
+        self.image_path = os.path.expanduser(image_path) if image_path else image_path
         self.inactivity_timeout = inactivity_timeout
         self.auto_unmount = auto_unmount
         self.max_retries = max(1, max_retries)
@@ -59,7 +59,7 @@ class VolumeManager:
         # Initialize activity tracker with volume-specific tracking
         # Use volume path hash to create unique tracker ID for each volume
         import hashlib
-        tracker_id = f"ppass_{hashlib.md5(volume_path.encode(), usedforsecurity=False).hexdigest()[:8]}"
+        tracker_id = f"ppass_{hashlib.md5(self.volume_path.encode(), usedforsecurity=False).hexdigest()[:8]}"
         
         self.activity_tracker = ActivityTracker(
             inactivity_timeout=inactivity_timeout,

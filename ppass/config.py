@@ -80,11 +80,11 @@ def load_config(config_path: Optional[str] = None) -> Config:
             print(f"Warning: Could not load config file {config_path}: {e}")
     
     return Config(
-        volume_path=config_dict.get("volume_path", ""),
-        image_path=config_dict.get("image_path", ""),
+        volume_path=os.path.expanduser(config_dict.get("volume_path", "")),
+        image_path=os.path.expanduser(config_dict.get("image_path", "")),
         store_path=config_dict.get("store_path", ".password-store"),
         volume_backend=config_dict.get("volume_backend", ""),
-        veracrypt_path=config_dict.get("veracrypt_path", "veracrypt"),
+        veracrypt_path=os.path.expanduser(config_dict.get("veracrypt_path", "veracrypt")),
         unmount_timeout=config_dict.get("unmount_timeout", 300),
         max_retries=config_dict.get("max_retries", 3),
         auto_unmount=config_dict.get("auto_unmount", True),

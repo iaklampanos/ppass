@@ -25,11 +25,7 @@ class MacOSPlatform(BasePlatform):
             image_path: Path to the encrypted image file
             show_in_finder: Whether the volume should appear in Finder
         """
-        import os
         super().__init__(volume_path, image_path, show_in_finder)
-        # Expand user path if provided
-        if self.image_path:
-            self.image_path = os.path.expanduser(self.image_path)
 
     def is_mounted(self) -> bool:
         """

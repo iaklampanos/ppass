@@ -1,5 +1,6 @@
 """Tests for volume manager."""
 
+import os
 import threading
 import unittest
 from unittest.mock import patch, MagicMock
@@ -64,6 +65,24 @@ class TestVolumeManager(unittest.TestCase):
         mock_system.return_value = "Darwin"
         with self.assertRaises(RuntimeError):
             VolumeManager("/Volumes/test", volume_backend="truecrypt")
+
+    @patch("ppass.core.volume.platform.system")
+    def test_tilde_volume_path_is_expanded(self, mock_system):
+        """VolumeManager expands ~/... in volume_path to the real home directory."""
+        mock_system.return_value = "Darwin"
+        vm = VolumeManager("~/mnt/test")
+        home = os.path.expanduser("~")
+        self.assertEqual(vm.volume_path, f"{home}/mnt/test")
+        self.assertFalse(vm.volume_path.startswith("~"))
+
+    @patch("ppass.core.volume.platform.system")
+    def test_tilde_image_path_is_expanded(self, mock_system):
+        """VolumeManager expands ~/... in image_path to the real home directory."""
+        mock_system.return_value = "Darwin"
+        vm = VolumeManager("/Volumes/test", image_path="~/cloud/store.dmg")
+        home = os.path.expanduser("~")
+        self.assertEqual(vm.image_path, f"{home}/cloud/store.dmg")
+        self.assertFalse(vm.image_path.startswith("~"))
 
     @patch("ppass.core.volume.platform.system")
     def test_platform_unsupported(self, mock_system):

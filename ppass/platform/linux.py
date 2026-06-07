@@ -25,11 +25,7 @@ class LinuxPlatform(BasePlatform):
             show_in_finder: Accepted for API parity with macOS; Linux mounts are
                 always visible to the file manager, so this is a no-op here.
         """
-        import os
         super().__init__(volume_path, image_path, show_in_finder)
-        # Expand user path if provided
-        if self.image_path:
-            self.image_path = os.path.expanduser(self.image_path)
 
     def is_mounted(self) -> bool:
         """

@@ -62,6 +62,17 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(config.volume_path, "")
         self.assertEqual(config.store_path, ".password-store")
 
+    def test_load_config_expands_tilde_in_paths(self):
+        """~/... in VOLUME_PATH, IMAGE_PATH, and VERACRYPT_PATH is expanded at load time."""
+        with open(self.config_path, "w") as f:
+            f.write("VOLUME_PATH=~/mnt/vc\nIMAGE_PATH=~/cloud/store.vc\n")
+        config = load_config(self.config_path)
+        home = os.path.expanduser("~")
+        self.assertEqual(config.volume_path, f"{home}/mnt/vc")
+        self.assertEqual(config.image_path, f"{home}/cloud/store.vc")
+        self.assertFalse(config.volume_path.startswith("~"))
+        self.assertFalse(config.image_path.startswith("~"))
+
     def test_config_volume_backend_defaults(self):
         """volume_backend defaults to empty string; veracrypt_path to 'veracrypt'."""
         config = Config(volume_path="/Volumes/Test")

@@ -3,6 +3,7 @@
 
 """Abstract base class for platform-specific volume operations."""
 
+import os
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -20,14 +21,16 @@ class BasePlatform(ABC):
         Initialize platform handler.
 
         Args:
-            volume_path: Path to the encrypted volume mount point
-            image_path: Path to the encrypted volume image file (for mounting)
+            volume_path: Path to the encrypted volume mount point. ``~/...``
+                paths are expanded to the user's home directory.
+            image_path: Path to the encrypted volume image file (for mounting).
+                ``~/...`` paths are expanded.
             show_in_finder: Whether the mounted volume should be browsable in
                 the OS file manager (Finder on macOS). When False, the volume is
                 mounted hidden to minimize exposure.
         """
-        self.volume_path = volume_path
-        self.image_path = image_path
+        self.volume_path = os.path.expanduser(volume_path)
+        self.image_path = os.path.expanduser(image_path) if image_path else image_path
         self.show_in_finder = show_in_finder
 
     @abstractmethod

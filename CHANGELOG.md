@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.6.7]
+
+### Fixed
+- **`~/...` paths in config broken silently** (`platform/base.py`, `core/volume.py`,
+  `config.py`): `volume_path` was never passed through `os.path.expanduser()`, so
+  `VOLUME_PATH=~/mnt/vc` in `~/.ppassrc` left the literal string `~/mnt/vc`
+  everywhere.  This caused `os.makedirs` to create a directory named `~` in the
+  working directory, VeraCrypt to fail or mount at the wrong location, and
+  `is_mounted()` to always return False (the literal path never appeared in
+  `veracrypt --list` output).  `image_path` was expanded in some platform
+  subclasses but not `volume_path`, and neither was expanded at the config
+  boundary.
+
+  Path expansion is now applied at three layers:
+  1. **`load_config()`** — expands `VOLUME_PATH`, `IMAGE_PATH`, and `VERACRYPT_PATH`
+     as soon as the config file is read, so all downstream consumers (CLI, watcher)
+     receive real paths.
+  2. **`VolumeManager.__init__()`** — safety belt for programmatic callers that
+     bypass `load_config`.
+  3. **`BasePlatform.__init__()`** — deepest defence; covers direct platform
+     instantiation in tests or future callers.
+
+  Redundant per-subclass `expanduser` calls in `MacOSPlatform`, `VeraCryptPlatform`,
+  and `LinuxPlatform` have been removed.  `VeraCryptPlatform` now also expands
+  `veracrypt_path` so `~/bin/veracrypt`-style binary paths work.
+
+### Tests
+- Added `test_load_config_expands_tilde_in_paths` (`test_config.py`).
+- Added `test_tilde_volume_path_is_expanded` and `test_tilde_image_path_is_expanded`
+  (`test_volume.py`).
+- Total: 91 tests, all passing; coverage 84%.
+
+### Documentation
+- `README.md`: noted `~/...` support in the configuration section; updated the
+  architecture diagram to include `veracrypt.py`, `windows.py`, and `watcher.py`;
+  removed outdated "Linux support planned" language; simplified "Adding Platform
+  Support" section.
+
 ## [0.6.6]
 
 ### Fixed

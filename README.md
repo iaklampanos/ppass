@@ -1,6 +1,6 @@
 # ppass - Encrypted Volume Password Manager
 
-A modular Python wrapper around the `pass` password manager that automatically manages encrypted volumes on macOS (with Linux support planned). Perfect for keeping your password store on a shared or cloud drive with automatic mounting and unmounting.
+A modular Python wrapper around the `pass` password manager that automatically manages encrypted volumes on macOS and Linux. Perfect for keeping your password store on a shared or cloud drive with automatic mounting and unmounting.
 
 ## Features
 
@@ -84,11 +84,12 @@ Run `ppass --setup` for an interactive wizard, or edit `~/.ppassrc` directly (mo
 # Volume backend: 'hdiutil' (macOS sparsebundle/dmg) or 'veracrypt' (cross-platform)
 VOLUME_BACKEND=hdiutil
 
-# Path to the encrypted volume image file
+# Path to the encrypted volume image file  (~/... paths are supported)
 IMAGE_PATH=~/cloud/ppass.sparsebundle   # or ~/cloud/ppass.vc for VeraCrypt
 
-# Mount point for the encrypted volume
-VOLUME_PATH=/Volumes/ppass
+# Mount point for the encrypted volume  (~/... paths are supported)
+VOLUME_PATH=/Volumes/ppass              # macOS example
+# VOLUME_PATH=~/mnt/ppass              # Linux example
 
 # Password store path inside the encrypted volume
 STORE_PATH=.password-store
@@ -156,28 +157,24 @@ ppass/
 │   └── __init__.py
 ├── platform/
 │   ├── base.py        # Abstract platform interface
-│   ├── macos.py       # macOS-specific implementation
-│   ├── linux.py       # Linux support (planned)
+│   ├── macos.py       # macOS hdiutil implementation
+│   ├── veracrypt.py   # VeraCrypt implementation (macOS + Linux)
+│   ├── linux.py       # Linux placeholder (use VeraCrypt backend)
+│   ├── windows.py     # Windows stubs (not yet implemented)
 │   └── __init__.py
 ├── cli.py             # Command-line interface
 ├── config.py          # Configuration management
+├── watcher.py         # Detached auto-unmount watcher process
 └── __init__.py
 ```
 
 ### Adding Platform Support
 
-To add Linux support or other platforms:
+To add support for a new platform or backend:
 
-1. Create a new class in `ppass/platform/` (e.g., `linux.py`)
-2. Inherit from `BasePlatform` in `ppass/platform/base.py`
-3. Implement required methods:
-   - `is_mounted()`: Check if volume is mounted
-   - `mount()`: Mount the volume
-   - `unmount()`: Unmount the volume
-   - `get_device_identifier()`: Get device info
-4. Update platform detection in `ppass/core/volume.py`
-
-See `ppass/platform/linux.py` for an example Linux implementation.
+1. Create a new class in `ppass/platform/` inheriting from `BasePlatform`
+2. Implement the four abstract methods: `is_mounted()`, `mount()`, `unmount()`, `get_device_identifier()`
+3. Update `VolumeManager._init_platform()` in `ppass/core/volume.py` to dispatch to the new class
 
 ## Development
 
@@ -275,6 +272,7 @@ Volume /Volumes/PasswordVault: mounted
 - Encrypted volume must be pre-created (ppass does not create volumes)
 - Requires manual setup on each machine
 - Windows support is stubbed but not yet implemented
+- VeraCrypt volumes must be pre-created (ppass does not create new containers)
 
 ## Future Enhancements
 

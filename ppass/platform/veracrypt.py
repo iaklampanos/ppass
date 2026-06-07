@@ -42,9 +42,7 @@ class VeraCryptPlatform(BasePlatform):
                 the binary is not on PATH (e.g. a non-standard install location).
         """
         super().__init__(volume_path, image_path, show_in_finder)
-        if self.image_path:
-            self.image_path = os.path.expanduser(self.image_path)
-        self.veracrypt_path = veracrypt_path
+        self.veracrypt_path = os.path.expanduser(veracrypt_path)
 
     # ------------------------------------------------------------------
     # BasePlatform interface
