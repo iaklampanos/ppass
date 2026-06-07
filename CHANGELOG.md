@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.6.2]
+
+### Fixed
+- **Watcher not forwarding volume backend to child process** (`watcher.py`):
+  `spawn_watcher()` was building the child command without `--backend` or
+  `--veracrypt-path`, so the detached watcher process created `VolumeManager`
+  with a blank backend.  On Linux this caused an immediate `RuntimeError`
+  (Linux requires `VOLUME_BACKEND=veracrypt`), making auto-unmount silently
+  fail for all VeraCrypt users.  On macOS with VeraCrypt the watcher picked
+  up `MacOSPlatform` instead of `VeraCryptPlatform`, so it could neither
+  detect nor dismount the volume.
+  Fixed by adding `--backend` / `--veracrypt-path` CLI args to the watcher
+  and forwarding `config.volume_backend` / `config.veracrypt_path` from
+  `_start_unmount_watcher()` in the CLI.
+
+### Tests
+- Added `TestSpawnWatcherArgs` (3 tests) verifying that `spawn_watcher()`
+  embeds `--backend` and `--veracrypt-path` in the child command, and that
+  `watcher.run()` constructs `VolumeManager` with the correct backend kwargs.
+  Total: 77 tests, all passing.
+
+### Tooling
+- Added `scripts/test_veracrypt_linux.sh`: self-contained Docker script that
+  installs VeraCrypt on Debian 12 (amd64/arm64 auto-detected), creates a
+  20 MB AES container, runs a raw mount/write/unmount/remount/verify cycle,
+  then repeats the same cycle through `ppass.core.volume.VolumeManager`.
+  Includes a `dmsetup mknodes` workaround for Docker Desktop on macOS, which
+  does not run `udevd`.
+- Added `*.deb` to `.gitignore`.
+
 ## [0.6.1]
 
 ### Tests
