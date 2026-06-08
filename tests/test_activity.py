@@ -73,6 +73,36 @@ class TestActivityTracker(unittest.TestCase):
             except OSError:
                 pass
 
+    def test_save_last_activity_rejects_symlink(self):
+        """_save_last_activity must not follow a symlink at the tracker path."""
+        import tempfile
+        tracker = ActivityTracker(tracker_id="ppass_symlink_unit_test")
+        # Remove any real file that may have been created during __init__
+        try:
+            os.remove(tracker._tracker_file)
+        except OSError:
+            pass
+        # Plant a symlink pointing at a harmless temp file
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            target_path = tmp.name
+        try:
+            os.symlink(target_path, tracker._tracker_file)
+            original_mtime = os.path.getmtime(target_path)
+            # This must silently fail (O_NOFOLLOW raises ELOOP) rather than
+            # overwriting the symlink target
+            tracker._save_last_activity()
+            self.assertEqual(os.path.getmtime(target_path), original_mtime,
+                             "_save_last_activity followed a symlink and wrote to the target")
+        finally:
+            try:
+                os.remove(tracker._tracker_file)
+            except OSError:
+                pass
+            try:
+                os.remove(target_path)
+            except OSError:
+                pass
+
     def test_reset(self):
         """Test tracker reset."""
         tracker = ActivityTracker()

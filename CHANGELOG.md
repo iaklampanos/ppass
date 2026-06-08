@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.6.8]
+
+### Security
+- **Activity file `open("w")` followed symlinks — local file overwrite possible**
+  (`core/activity.py`): `_save_last_activity()` used a plain `open(..., "w")`
+  call on a deterministic path in `/tmp`. A local attacker who pre-planted a
+  symlink at that path could cause ppass to overwrite any file owned by the
+  victim with a float timestamp.
+
+  The call is replaced with `os.open(..., O_WRONLY | O_CREAT | O_TRUNC |
+  O_NOFOLLOW, 0o600)` wrapped in `os.fdopen()`. `O_NOFOLLOW` makes the open
+  fail with `ELOOP` if the path is a symlink, preventing the attack. The mode
+  is now set atomically at creation, so the separate `os.chmod()` call is
+  removed.
+
+### Tests
+- Added `test_save_last_activity_rejects_symlink` (`test_activity.py`): plants
+  a symlink at the tracker path and asserts that `_save_last_activity()` does
+  not modify the symlink target.
+- Total: 92 tests, all passing; coverage 84%.
+
 ## [0.6.7]
 
 ### Fixed

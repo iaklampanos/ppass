@@ -65,11 +65,15 @@ class ActivityTracker:
     def _save_last_activity(self) -> None:
         """Save last activity time to persistent storage."""
         try:
-            with open(self._tracker_file, "w") as f:
+            fd = os.open(
+                self._tracker_file,
+                os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
+                0o600,
+            )
+            with os.fdopen(fd, "w") as f:
                 f.write(str(self.last_activity))
-            os.chmod(self._tracker_file, 0o600)
-        except IOError:
-            pass  # Silently ignore write errors
+        except OSError:
+            pass
 
     def record_activity(self) -> None:
         """Record an activity event, resetting the inactivity timer."""
