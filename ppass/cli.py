@@ -131,7 +131,8 @@ def main(argv: Optional[list] = None) -> int:
     _print_banner()
 
     # Check if first positional arg is a ppass command
-    if args.pass_args and args.pass_args[0] in ("status", "mount", "unmount", "eject", "setup"):
+    _PPASS_CMDS = ("status", "mount", "unmount", "eject", "setup", "help", "config")
+    if args.pass_args and args.pass_args[0] in _PPASS_CMDS:
         ppass_cmd = args.pass_args[0]
         args.pass_args = args.pass_args[1:]  # Remove the command from pass_args
 
@@ -145,13 +146,26 @@ def main(argv: Optional[list] = None) -> int:
             args.eject = True
         elif ppass_cmd == "setup":
             args.setup = True
-    
+        elif ppass_cmd == "help":
+            _print_help()
+            return 0
+        elif ppass_cmd == "config":
+            # Load config first, then display — fall through to load below
+            args._show_config = True
+
+    if not hasattr(args, "_show_config"):
+        args._show_config = False
+
     # Load configuration
     config = load_config(args.config)
     
     if args.verbose:
         config.verbose = True
-    
+
+    if args._show_config:
+        _print_config(config)
+        return 0
+
     # Handle setup
     if args.setup:
         return _handle_setup(config, args.config)
@@ -263,6 +277,53 @@ def main(argv: Optional[list] = None) -> int:
     
     finally:
         vm.cleanup()
+
+
+def _print_help() -> None:
+    """Print ppass-specific commands to stdout."""
+    rows = [
+        ("help",          "show this help"),
+        ("config",        "show current configuration"),
+        ("status",        "show mount status and auto-unmount countdown"),
+        ("mount",         "mount the encrypted volume"),
+        ("unmount",       "gracefully unmount the volume"),
+        ("eject",         "eject (unmount) the volume"),
+        ("setup",         "interactive configuration wizard"),
+        ("<pass-cmd>",    "proxy any pass command (auto-mounts if needed)"),
+    ]
+    col = max(len(r[0]) for r in rows) + 2
+    print("ppass commands:\n")
+    for cmd, desc in rows:
+        print(f"  {cmd:<{col}}{desc}")
+    print(
+        f"\nFlags: --mount, --unmount, --eject, --status, --setup, --verbose\n"
+        f"       --config <path>  use an alternate config file"
+    )
+
+
+def _print_config(config) -> None:
+    """Print current configuration in a human-friendly table."""
+    import os as _os
+    config_path = _os.path.expanduser("~/.ppassrc")
+    backend = config.volume_backend or "hdiutil (default)"
+    timeout_str = f"{config.unmount_timeout}s ({config.unmount_timeout // 60}m)" \
+        if config.unmount_timeout >= 60 else f"{config.unmount_timeout}s"
+
+    rows = [
+        ("Backend",         backend),
+        ("Image path",      config.image_path or "(not set)"),
+        ("Volume path",     config.volume_path or "(not set)"),
+        ("Store path",      config.store_path),
+        ("Auto-unmount",    "true" if config.auto_unmount else "false"),
+        ("Timeout",         timeout_str),
+        ("Max retries",     str(config.max_retries)),
+        ("Show in Finder",  "true" if config.show_in_finder else "false"),
+        ("VeraCrypt path",  config.veracrypt_path),
+    ]
+    col = max(len(r[0]) for r in rows) + 2
+    print(f"ppass configuration  ({config_path})\n")
+    for label, value in rows:
+        print(f"  {label:<{col}}{value}")
 
 
 def _handle_setup(config, config_path: Optional[str]) -> int:

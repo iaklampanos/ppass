@@ -66,6 +66,12 @@ ppass <command> [options]
 ### 3. Manual Volume Control
 
 ```bash
+# List all ppass-specific commands
+ppass help
+
+# Show current configuration
+ppass config
+
 # Check volume status
 ppass --status
 

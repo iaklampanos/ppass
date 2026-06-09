@@ -123,6 +123,33 @@ class TestCli(unittest.TestCase):
         with patch("ppass.cli.load_config", return_value=_config()):
             self.assertEqual(main(["--eject"]), 0)
 
+    def test_help_command_exits_zero(self):
+        """`ppass help` prints ppass commands and exits 0 without needing config."""
+        import io
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            rc = main(["help"])
+        self.assertEqual(rc, 0)
+        output = mock_out.getvalue()
+        for cmd in ("help", "config", "status", "mount", "unmount", "eject", "setup"):
+            self.assertIn(cmd, output)
+
+    def test_config_command_shows_configuration(self):
+        """`ppass config` prints configuration fields and exits 0."""
+        import io
+        cfg = _config(
+            image_path="/tmp/test.vc",
+            volume_backend="veracrypt",
+            unmount_timeout=120,
+        )
+        with patch("ppass.cli.load_config", return_value=cfg), \
+             patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            rc = main(["config"])
+        self.assertEqual(rc, 0)
+        output = mock_out.getvalue()
+        self.assertIn("veracrypt", output)
+        self.assertIn("/tmp/test.vc", output)
+        self.assertIn("120s", output)
+
     @patch("ppass.cli.VolumeManager")
     def test_status_not_mounted(self, mock_vm_cls):
         """`ppass status` exits 0 even when the volume is not mounted."""

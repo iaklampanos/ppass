@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.7.1]
+
+### Added
+- **`ppass help` command** (`cli.py`): prints all ppass-specific commands with
+  short descriptions and exits 0.  Works without a config file, so it is safe
+  to run before setup.
+- **`ppass config` command** (`cli.py`): prints current configuration
+  (`~/.ppassrc`) in a human-friendly table — backend, paths, timeout, flags,
+  and VeraCrypt binary — and exits 0.
+
+### Tests
+- Added `test_help_command_exits_zero` and `test_config_command_shows_configuration`
+  (`test_cli.py`).
+- Total: 97 tests, all passing; coverage 85%.
+
 ## [0.7.0]
 
 ### Added
