@@ -15,23 +15,17 @@ class TestMacOSPlatform(unittest.TestCase):
         """Set up test fixtures."""
         self.platform = MacOSPlatform("/Volumes/TestVolume")
 
-    @patch("subprocess.run")
-    def test_is_mounted_true(self, mock_run):
-        """Test is_mounted returns True when volume exists."""
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_run.return_value = mock_result
-        
+    @patch("os.path.ismount", return_value=True)
+    def test_is_mounted_true(self, mock_ismount):
+        """Test is_mounted returns True when path is a mount point."""
         self.assertTrue(self.platform.is_mounted())
+        mock_ismount.assert_called_once_with("/Volumes/TestVolume")
 
-    @patch("subprocess.run")
-    def test_is_mounted_false(self, mock_run):
-        """Test is_mounted returns False when volume doesn't exist."""
-        mock_result = MagicMock()
-        mock_result.returncode = 1
-        mock_run.return_value = mock_result
-        
+    @patch("os.path.ismount", return_value=False)
+    def test_is_mounted_false(self, mock_ismount):
+        """Test is_mounted returns False when path is not a mount point."""
         self.assertFalse(self.platform.is_mounted())
+        mock_ismount.assert_called_once_with("/Volumes/TestVolume")
 
     @patch("subprocess.run")
     def test_mount_success(self, mock_run):
@@ -130,17 +124,25 @@ class TestVeraCryptPlatform(unittest.TestCase):
         )
 
     @patch("subprocess.run")
-    def test_is_mounted_true(self, mock_run):
+    @patch("os.path.ismount", return_value=True)
+    def test_is_mounted_true(self, mock_ismount, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="1: /tmp/test.vc /mnt/vc\n")
         self.assertTrue(self.platform.is_mounted())
 
+    @patch("os.path.ismount", return_value=False)
+    def test_is_mounted_false_not_a_mountpoint(self, mock_ismount):
+        """Returns False immediately when the path is not a mount point."""
+        self.assertFalse(self.platform.is_mounted())
+
     @patch("subprocess.run")
-    def test_is_mounted_false_empty_output(self, mock_run):
+    @patch("os.path.ismount", return_value=True)
+    def test_is_mounted_false_empty_output(self, mock_ismount, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="")
         self.assertFalse(self.platform.is_mounted())
 
     @patch("subprocess.run")
-    def test_is_mounted_no_false_positive_on_path_prefix(self, mock_run):
+    @patch("os.path.ismount", return_value=True)
+    def test_is_mounted_no_false_positive_on_path_prefix(self, mock_ismount, mock_run):
         """A volume mounted at /mnt/vc2 must not match a check for /mnt/vc."""
         mock_run.return_value = MagicMock(
             returncode=0, stdout="1: /tmp/other.vc /mnt/vc2\n"
@@ -148,7 +150,8 @@ class TestVeraCryptPlatform(unittest.TestCase):
         self.assertFalse(self.platform.is_mounted())
 
     @patch("subprocess.run")
-    def test_is_mounted_veracrypt_not_found(self, mock_run):
+    @patch("os.path.ismount", return_value=True)
+    def test_is_mounted_veracrypt_not_found(self, mock_ismount, mock_run):
         mock_run.side_effect = FileNotFoundError
         self.assertFalse(self.platform.is_mounted())
 
@@ -163,10 +166,11 @@ class TestVeraCryptPlatform(unittest.TestCase):
         self.assertTrue(self.platform.mount())
 
     @patch("subprocess.run")
-    def test_mount_skips_when_already_mounted(self, mock_run):
+    @patch("os.path.ismount", return_value=True)
+    def test_mount_skips_when_already_mounted(self, mock_ismount, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="1: /tmp/test.vc /mnt/vc\n")
         self.assertTrue(self.platform.mount())
-        self.assertEqual(mock_run.call_count, 1)  # only the is_mounted check
+        self.assertEqual(mock_run.call_count, 1)  # only the veracrypt --list check
 
     def test_mount_missing_image_path(self):
         p = VeraCryptPlatform("/mnt/vc")
@@ -228,10 +232,11 @@ class TestVeraCryptPlatform(unittest.TestCase):
 
     @patch("subprocess.run")
     @patch("getpass.getpass", return_value="wrongpass")
-    def test_mount_removes_created_dir_on_failure(self, _getpass, mock_run):
+    @patch("os.path.ismount", return_value=True)
+    def test_mount_removes_created_dir_on_failure(self, mock_ismount, _getpass, mock_run):
         """An empty mount dir ppass created is removed when authentication fails."""
         mock_run.side_effect = [
-            MagicMock(returncode=0, stdout=""),         # is_mounted → False
+            MagicMock(returncode=0, stdout=""),         # is_mounted → False (empty list)
             MagicMock(returncode=1, stderr=""),          # attach fails
         ]
         with patch("os.path.exists", return_value=False), \
@@ -245,11 +250,12 @@ class TestVeraCryptPlatform(unittest.TestCase):
     @patch("subprocess.run")
     @patch("getpass.getpass", return_value="wrongpass")
     @patch("os.makedirs")
-    def test_mount_prints_stderr_on_failure(self, _makedirs, _getpass, mock_run):
+    @patch("os.path.ismount", return_value=True)
+    def test_mount_prints_stderr_on_failure(self, mock_ismount, _makedirs, _getpass, mock_run):
         """A failed mount forwards VeraCrypt's error message to stdout."""
         import io
         mock_run.side_effect = [
-            MagicMock(returncode=0, stdout=""),                          # is_mounted → False
+            MagicMock(returncode=0, stdout=""),                          # is_mounted → False (empty list)
             MagicMock(returncode=1, stderr="Error: wrong password\n"),  # attach fails
         ]
         with patch("sys.stdout", new_callable=io.StringIO) as mock_out:

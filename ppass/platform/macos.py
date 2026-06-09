@@ -3,6 +3,7 @@
 
 """macOS-specific volume management implementation."""
 
+import os
 import subprocess
 import re
 from typing import Optional
@@ -34,16 +35,7 @@ class MacOSPlatform(BasePlatform):
         Returns:
             True if mounted, False otherwise
         """
-        try:
-            result = subprocess.run(
-                ["diskutil", "info", self.volume_path],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            return result.returncode == 0
-        except (subprocess.TimeoutExpired, FileNotFoundError):
-            return False
+        return os.path.ismount(self.volume_path)
 
     def mount(self) -> bool:
         """

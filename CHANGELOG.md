@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.7.2]
+
+### Fixed
+- **`MacOSPlatform.is_mounted()` spawned a `diskutil info` subprocess on every
+  call** (`platform/macos.py`): `is_mounted()` ran `diskutil info <path>` as a
+  subprocess to check mount state. The background watcher calls this every 5
+  seconds; ppass also calls it multiple times per invocation. `diskutil info`
+  hits the DiskArbitration framework, which interacts with `fileproviderd`
+  (Apple's File Provider daemon) and causes excessive CPU usage when the volume
+  image lives on iCloud Drive or another cloud-synced location.
+
+  Replaced with `os.path.ismount(self.volume_path)` — a pure `statfs()` syscall
+  with no subprocess, no process fork, and no DiskArbitration involvement.
+
+- **`VeraCryptPlatform.is_mounted()` always spawned `veracrypt --list`**
+  (`platform/veracrypt.py`): the check ran `veracrypt --list` even when the
+  mount-point path was clearly not a mount point. Added an `os.path.ismount()`
+  fast early-exit: when the path is not a mount point the subprocess is skipped
+  entirely, reducing overhead during the watcher's polling interval.
+
+### Tests
+- `TestMacOSPlatform`: replaced `subprocess.run` patches in
+  `test_is_mounted_true` / `test_is_mounted_false` with `os.path.ismount`
+  patches.
+- `TestVeraCryptPlatform`: patched `os.path.ismount` in all tests that exercise
+  the `veracrypt --list` code path; added `test_is_mounted_false_not_a_mountpoint`
+  for the new fast-exit path.
+- `TestVeraCryptLifecycle` (integration): patched `os.path.ismount` in lifecycle
+  tests that use a real temp directory (not a kernel mount point) as the mock
+  VeraCrypt mountpoint.
+- Total: 98 tests, all passing; coverage 85%.
+
+### Documentation
+- `README.md`: added cloud-backed volume guidance — prefer `.sparsebundle` over
+  fixed `.dmg` for cloud-synced use; recommend `SHOW_IN_FINDER=false` to prevent
+  Spotlight indexing and reduce unnecessary I/O on the mounted volume.
+
 ## [0.7.1]
 
 ### Added

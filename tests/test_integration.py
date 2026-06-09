@@ -81,7 +81,8 @@ class TestVeraCryptLifecycle(unittest.TestCase):
 
     @patch("getpass.getpass", return_value="test-passphrase")
     @patch("subprocess.run")
-    def test_mount_state_tracks_correctly(self, mock_run, _getpass):
+    @patch("os.path.ismount", return_value=True)
+    def test_mount_state_tracks_correctly(self, mock_ismount, mock_run, _getpass):
         """VolumeManager correctly tracks mounted/unmounted state across cycles."""
         mock_run.side_effect = self._vc_mock()
         vm = self._make_vm()
@@ -96,7 +97,8 @@ class TestVeraCryptLifecycle(unittest.TestCase):
 
     @patch("getpass.getpass", return_value="test-passphrase")
     @patch("subprocess.run")
-    def test_secret_persists_across_unmount_remount(self, mock_run, _getpass):
+    @patch("os.path.ismount", return_value=True)
+    def test_secret_persists_across_unmount_remount(self, mock_ismount, mock_run, _getpass):
         """A secret written after mount survives unmount and remount.
 
         Lifecycle: mount → write secret → unmount → remount → read back.

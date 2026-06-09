@@ -113,8 +113,10 @@ AUTO_UNMOUNT=true
 MAX_RETRIES=3
 
 # --- hdiutil-specific ---
-# Show the mounted volume in Finder (true/false)
-SHOW_IN_FINDER=true
+# Show the mounted volume in Finder (true/false).
+# Set to false for cloud-backed volumes: prevents Spotlight from indexing the
+# mounted volume, reducing unnecessary writes and cloud-sync I/O on unmount.
+SHOW_IN_FINDER=false
 
 # --- VeraCrypt-specific ---
 # Path to the veracrypt binary (override if not on PATH)
@@ -122,6 +124,32 @@ SHOW_IN_FINDER=true
 ```
 
 See `.ppassrc.template` in the repository for a fully commented example.
+
+## Cloud-backed Volumes (hdiutil)
+
+When using the `hdiutil` backend with a volume image stored on iCloud Drive,
+Google Drive, or another cloud-synced location, two settings matter:
+
+**Use `.sparsebundle`, not a fixed `.dmg`.**
+A fixed-size `.dmg` is treated as a single opaque blob by cloud sync daemons:
+every unmount potentially triggers a full re-upload of the entire file. A
+`.sparsebundle` is a directory of small band files; cloud sync only uploads the
+bands that actually changed. For a typical password-store session (one or two
+entries read or written) that is 1–2 bands (≈8–16 MB) instead of the full image
+size.
+
+```bash
+# Create an 80 MB encrypted sparsebundle (run in Terminal — hdiutil needs a TTY
+# for the passphrase prompt, so this cannot be run in a non-interactive shell)
+hdiutil create -type SPARSEBUNDLE -size 80m -fs HFS+ \
+  -volname myvault -encryption AES-256 ~/path/on/cloud/myvault.sparsebundle
+```
+
+**Set `SHOW_IN_FINDER=false`.**
+This passes `-nobrowse` to `hdiutil attach`, hiding the volume from Finder and
+preventing Spotlight from indexing it. Without this, Spotlight writes its own
+metadata into the mounted volume during the session, creating additional dirty
+data that the cloud sync daemon must upload on unmount.
 
 ## VeraCrypt Backend
 

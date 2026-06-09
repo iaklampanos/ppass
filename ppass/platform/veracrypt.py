@@ -50,6 +50,10 @@ class VeraCryptPlatform(BasePlatform):
 
     def is_mounted(self) -> bool:
         """Return True if the container is currently mounted at volume_path."""
+        # Fast path: if the path isn't even a mount point we can skip the
+        # heavyweight veracrypt --list subprocess entirely.
+        if not os.path.ismount(self.volume_path):
+            return False
         try:
             result = subprocess.run(
                 [self.veracrypt_path, "--text", "--list"],
