@@ -99,6 +99,31 @@ class TestCli(unittest.TestCase):
             self.assertEqual(main(["unmount"]), 1)
 
     @patch("ppass.cli.VolumeManager")
+    def test_eject_success(self, mock_vm_cls):
+        """`ppass eject` returns 0 and calls unmount on success."""
+        mock_vm_cls.return_value.unmount.return_value = True
+
+        with patch("ppass.cli.load_config", return_value=_config()):
+            self.assertEqual(main(["eject"]), 0)
+        mock_vm_cls.return_value.unmount.assert_called_once()
+
+    @patch("ppass.cli.VolumeManager")
+    def test_eject_failure(self, mock_vm_cls):
+        """`ppass eject` returns 1 when unmount fails."""
+        mock_vm_cls.return_value.unmount.return_value = False
+
+        with patch("ppass.cli.load_config", return_value=_config()):
+            self.assertEqual(main(["eject"]), 1)
+
+    @patch("ppass.cli.VolumeManager")
+    def test_eject_flag(self, mock_vm_cls):
+        """`ppass --eject` is accepted as an alternative to `ppass eject`."""
+        mock_vm_cls.return_value.unmount.return_value = True
+
+        with patch("ppass.cli.load_config", return_value=_config()):
+            self.assertEqual(main(["--eject"]), 0)
+
+    @patch("ppass.cli.VolumeManager")
     def test_status_not_mounted(self, mock_vm_cls):
         """`ppass status` exits 0 even when the volume is not mounted."""
         mock_vm_cls.return_value.is_mounted.return_value = False

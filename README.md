@@ -74,6 +74,9 @@ ppass --mount
 
 # Manually unmount
 ppass --unmount
+
+# Eject (unmount) the volume immediately
+ppass eject
 ```
 
 ## Configuration

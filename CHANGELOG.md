@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.7.0]
+
+### Added
+- **`ppass eject` command** (`cli.py`): new command (and `--eject` flag) that
+  unmounts the encrypted volume immediately.  Semantically equivalent to
+  `ppass unmount` — both perform a graceful unmount — but named "eject" to
+  match the familiar OS metaphor for removing a volume (e.g. ejecting a USB
+  drive or disk image from Finder).
+
+### Tests
+- Added `test_eject_success`, `test_eject_failure`, and `test_eject_flag`
+  (`test_cli.py`): verify the new command returns the correct exit code and
+  delegates to `VolumeManager.unmount()`.
+- Total: 95 tests, all passing; coverage 84%.
+
 ## [0.6.8]
 
 ### Security

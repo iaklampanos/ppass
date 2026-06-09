@@ -108,6 +108,11 @@ def main(argv: Optional[list] = None) -> int:
         help="Unmount the encrypted volume"
     )
     parser.add_argument(
+        "--eject",
+        action="store_true",
+        help="Eject (unmount) the encrypted volume"
+    )
+    parser.add_argument(
         "-v", "--verbose",
         action="store_true",
         help="Verbose output"
@@ -126,16 +131,18 @@ def main(argv: Optional[list] = None) -> int:
     _print_banner()
 
     # Check if first positional arg is a ppass command
-    if args.pass_args and args.pass_args[0] in ("status", "mount", "unmount", "setup"):
+    if args.pass_args and args.pass_args[0] in ("status", "mount", "unmount", "eject", "setup"):
         ppass_cmd = args.pass_args[0]
         args.pass_args = args.pass_args[1:]  # Remove the command from pass_args
-        
+
         if ppass_cmd == "status":
             args.status = True
         elif ppass_cmd == "mount":
             args.mount = True
         elif ppass_cmd == "unmount":
             args.unmount = True
+        elif ppass_cmd == "eject":
+            args.eject = True
         elif ppass_cmd == "setup":
             args.setup = True
     
@@ -211,7 +218,16 @@ def main(argv: Optional[list] = None) -> int:
         else:
             print(f"Error: Failed to unmount volume", file=sys.stderr)
             return 1
-    
+
+    if args.eject:
+        success = vm.unmount()
+        if success:
+            print(f"Volume ejected: {config.volume_path}")
+            return 0
+        else:
+            print(f"Error: Failed to eject volume", file=sys.stderr)
+            return 1
+
     # If no ppass-specific args, proxy to pass
     pass_args = args.pass_args if args.pass_args else ["--help"]
     

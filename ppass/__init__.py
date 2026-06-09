@@ -34,7 +34,7 @@ Public API:
 - :class:`~ppass.core.activity.ActivityTracker` - inactivity timeout management.
 """
 
-__version__ = "0.6.8"
+__version__ = "0.7.0"
 __author__ = "Iraklis A. Klampanos"
 __email__ = "iraklis@tuta.com"
 __license__ = "MIT"
