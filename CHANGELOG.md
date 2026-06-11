@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.7.3]
+
+### Fixed
+- **`pass rm` and `pass mv` confirmation prompts were invisible** (`core/pass_wrapper.py`):
+  Commands not in the `interactive_commands` set ran with `capture_output=True`,
+  which captured `pass`'s "Are you sure?" prompt before it could reach the
+  terminal. stdin remained live, so pressing Enter answered the invisible prompt
+  with the default (yes) without the user realising it. Added `rm` and `mv` to
+  `interactive_commands` so they run with direct terminal I/O, matching the
+  behaviour of `insert` and `edit`.
+
 ## [0.7.2]
 
 ### Fixed

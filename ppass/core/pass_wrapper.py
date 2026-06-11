@@ -41,7 +41,7 @@ class PassWrapper:
             # Check if this is an interactive command that needs stdin
             # Commands that need a live terminal (stdin input, editor, or suppressed
             # echo). Pass extensions may add others not listed here.
-            interactive_commands = {"insert", "edit", "init", "generate"}
+            interactive_commands = {"insert", "edit", "init", "generate", "rm", "mv"}
             is_interactive = len(args) > 0 and args[0] in interactive_commands
             
             if is_interactive:
