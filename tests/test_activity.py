@@ -60,13 +60,15 @@ class TestActivityTracker(unittest.TestCase):
         """
         tracker = ActivityTracker(tracker_id="ppass_reload_unit_test")
         try:
-            # Simulate another process recording activity far in the future.
-            future = tracker.last_activity + 1000
+            # Simulate another process recording activity a few seconds later.
+            # (Stays within the clock-skew margin; far-future values are rejected
+            # by _load_last_activity — see test_load_rejects_future_timestamp.)
+            updated = tracker.last_activity + 5
             with open(tracker._tracker_file, "w") as f:
-                f.write(str(future))
+                f.write(str(updated))
 
             tracker.reload_last_activity()
-            self.assertEqual(tracker.last_activity, future)
+            self.assertEqual(tracker.last_activity, updated)
         finally:
             try:
                 os.remove(tracker._tracker_file)
@@ -102,6 +104,58 @@ class TestActivityTracker(unittest.TestCase):
                 os.remove(target_path)
             except OSError:
                 pass
+
+    def test_load_rejects_future_timestamp(self):
+        """A far-future timestamp is ignored so auto-unmount can't be deferred."""
+        tracker = ActivityTracker(tracker_id="ppass_future_unit_test")
+        try:
+            with open(tracker._tracker_file, "w") as f:
+                f.write(str(time.time() + 10_000))
+            self.assertIsNone(tracker._load_last_activity())
+        finally:
+            try:
+                os.remove(tracker._tracker_file)
+            except OSError:
+                pass
+
+    def test_load_rejects_non_finite_timestamp(self):
+        """NaN/inf are rejected: they would make the idle check never fire."""
+        tracker = ActivityTracker(tracker_id="ppass_nan_unit_test")
+        try:
+            for bad in ("nan", "inf", "-inf"):
+                with open(tracker._tracker_file, "w") as f:
+                    f.write(bad)
+                self.assertIsNone(
+                    tracker._load_last_activity(),
+                    f"{bad!r} should be rejected",
+                )
+        finally:
+            try:
+                os.remove(tracker._tracker_file)
+            except OSError:
+                pass
+
+    def test_load_rejects_symlink(self):
+        """_load_last_activity must not follow a symlink at the tracker path."""
+        import tempfile
+        tracker = ActivityTracker(tracker_id="ppass_load_symlink_unit_test")
+        try:
+            os.remove(tracker._tracker_file)
+        except OSError:
+            pass
+        with tempfile.NamedTemporaryFile("w", delete=False) as tmp:
+            tmp.write(str(time.time()))
+            target_path = tmp.name
+        try:
+            os.symlink(target_path, tracker._tracker_file)
+            # O_NOFOLLOW makes the open fail (ELOOP) rather than read the target.
+            self.assertIsNone(tracker._load_last_activity())
+        finally:
+            for p in (tracker._tracker_file, target_path):
+                try:
+                    os.remove(p)
+                except OSError:
+                    pass
 
     def test_reset(self):
         """Test tracker reset."""

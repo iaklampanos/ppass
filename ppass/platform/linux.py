@@ -6,6 +6,7 @@
 import subprocess
 from typing import Optional
 from ppass.platform.base import BasePlatform
+from ppass.core.runtime import secure_env
 
 
 class LinuxPlatform(BasePlatform):
@@ -37,7 +38,8 @@ class LinuxPlatform(BasePlatform):
         try:
             result = subprocess.run(
                 ["mountpoint", "-q", self.volume_path],
-                timeout=5
+                timeout=5,
+                env=secure_env(),
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -61,7 +63,8 @@ class LinuxPlatform(BasePlatform):
                 ["umount", self.volume_path],
                 capture_output=True,
                 text=True,
-                timeout=10
+                timeout=10,
+                env=secure_env(),
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -79,7 +82,8 @@ class LinuxPlatform(BasePlatform):
                 ["df", self.volume_path],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                env=secure_env(),
             )
             
             lines = result.stdout.strip().split("\n")

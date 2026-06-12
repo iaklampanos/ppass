@@ -3,11 +3,13 @@
 
 """Activity tracking and inactivity timeout management."""
 
+import math
 import threading
 import time
 import os
-import tempfile
 from typing import Callable, Optional
+
+from ppass.core.runtime import runtime_dir, MAX_CLOCK_SKEW
 
 
 class ActivityTracker:
@@ -25,7 +27,7 @@ class ActivityTracker:
         self.inactivity_timeout = inactivity_timeout
         self.on_timeout = on_timeout
         self.tracker_id = tracker_id
-        self._tracker_file = os.path.join(tempfile.gettempdir(), f".{tracker_id}_activity")
+        self._tracker_file = os.path.join(runtime_dir(), f".{tracker_id}_activity")
         
         # Try to load last activity time from persistent storage, falling back
         # to "now" when there is no valid persisted value.
@@ -41,14 +43,26 @@ class ActivityTracker:
 
         Returns the stored timestamp, or None if there is no readable/valid
         persisted value (so callers can decide on a fallback).
+
+        The file is opened with ``O_NOFOLLOW`` so a symlink planted at the
+        predictable path is not followed, and the parsed value is validated:
+        a non-finite (NaN/inf) or far-future timestamp is rejected. Such a value
+        would make the inactivity check ``elapsed > timeout`` never become true,
+        silently defeating auto-unmount and leaving the decrypted store mounted.
         """
         try:
-            if os.path.exists(self._tracker_file):
-                with open(self._tracker_file, "r") as f:
-                    return float(f.read().strip())
-        except (IOError, ValueError):
-            pass
-        return None
+            fd = os.open(self._tracker_file, os.O_RDONLY | os.O_NOFOLLOW)
+        except OSError:
+            return None
+        try:
+            with os.fdopen(fd, "r") as f:
+                value = float(f.read().strip())
+        except (OSError, ValueError):
+            return None
+
+        if not math.isfinite(value) or value > time.time() + MAX_CLOCK_SKEW:
+            return None
+        return value
 
     def reload_last_activity(self) -> None:
         """Refresh last_activity from persistent storage.

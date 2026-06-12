@@ -4,6 +4,8 @@
 """Configuration management for ppass."""
 
 import os
+import stat
+import sys
 from dataclasses import dataclass
 from typing import Optional
 
@@ -34,6 +36,28 @@ class Config:
     verbose: bool = False
 
 
+def _warn_if_insecure_permissions(config_path: str) -> None:
+    """Warn (on stderr) if the config file is accessible to group or others.
+
+    ``save_config`` writes the file ``0o600``, but a config restored from a
+    backup, synced from another machine, or created by hand may be world- or
+    group-readable/writable. The file holds no secrets (only paths), but a
+    group/other-*writable* config lets another local user redirect ppass at an
+    attacker-controlled volume image or veracrypt binary, so it is worth
+    flagging.
+    """
+    try:
+        mode = os.lstat(config_path).st_mode
+    except OSError:
+        return
+    if mode & 0o077:
+        print(
+            f"Warning: {config_path} is accessible to other users "
+            f"(mode {stat.S_IMODE(mode):o}). Run: chmod 600 {config_path}",
+            file=sys.stderr,
+        )
+
+
 def load_config(config_path: Optional[str] = None) -> Config:
     """
     Load configuration from ~/.ppassrc file.
@@ -48,8 +72,9 @@ def load_config(config_path: Optional[str] = None) -> Config:
         config_path = os.path.expanduser("~/.ppassrc")
     
     config_dict = {}
-    
+
     if os.path.exists(config_path):
+        _warn_if_insecure_permissions(config_path)
         try:
             with open(config_path, "r") as f:
                 for line in f:

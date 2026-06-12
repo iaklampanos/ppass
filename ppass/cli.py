@@ -244,7 +244,23 @@ def main(argv: Optional[list] = None) -> int:
 
     # If no ppass-specific args, proxy to pass
     pass_args = args.pass_args if args.pass_args else ["--help"]
-    
+
+    # Guard against a store_path that escapes the encrypted volume. os.path.join
+    # silently discards volume_path when store_path is absolute, and a "../"
+    # component can climb out of it — either way `pass` would read/write an
+    # unencrypted location. Validate before mounting so we fail fast.
+    store_path = os.path.join(config.volume_path, config.store_path)
+    _volume_norm = os.path.normpath(config.volume_path)
+    _store_norm = os.path.normpath(store_path)
+    if _store_norm != _volume_norm and not _store_norm.startswith(_volume_norm + os.sep):
+        print(
+            f"Error: STORE_PATH '{config.store_path}' resolves outside the "
+            f"encrypted volume ({config.volume_path}). "
+            "Set STORE_PATH to a path inside the volume.",
+            file=sys.stderr,
+        )
+        return 1
+
     # Ensure volume is mounted before running pass
     if not vm.ensure_mounted():
         print("Error: Failed to mount volume", file=sys.stderr)
@@ -254,8 +270,7 @@ def main(argv: Optional[list] = None) -> int:
     _start_unmount_watcher(config)
 
     try:
-        # Initialize pass wrapper
-        store_path = os.path.join(config.volume_path, config.store_path)
+        # Initialize pass wrapper (store_path was validated above)
         pw = PassWrapper(store_path)
         
         if config.verbose:

@@ -94,5 +94,28 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(loaded.image_path, "/cloud/store.vc")
 
 
+    def test_load_warns_on_insecure_permissions(self):
+        """A group/other-accessible config file triggers a stderr warning."""
+        import io
+        from unittest.mock import patch
+        with open(self.config_path, "w") as f:
+            f.write("VOLUME_PATH=/Volumes/Test\n")
+        os.chmod(self.config_path, 0o644)
+        with patch("sys.stderr", new_callable=io.StringIO) as err:
+            load_config(self.config_path)
+        self.assertIn("accessible to other users", err.getvalue())
+
+    def test_load_no_warning_for_0600_config(self):
+        """A correctly-permissioned (0o600) config produces no warning."""
+        import io
+        from unittest.mock import patch
+        with open(self.config_path, "w") as f:
+            f.write("VOLUME_PATH=/Volumes/Test\n")
+        os.chmod(self.config_path, 0o600)
+        with patch("sys.stderr", new_callable=io.StringIO) as err:
+            load_config(self.config_path)
+        self.assertEqual(err.getvalue(), "")
+
+
 if __name__ == "__main__":
     unittest.main()

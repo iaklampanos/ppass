@@ -123,6 +123,20 @@ class TestCli(unittest.TestCase):
         with patch("ppass.cli.load_config", return_value=_config()):
             self.assertEqual(main(["--eject"]), 0)
 
+    @patch("ppass.cli.VolumeManager")
+    def test_absolute_store_path_rejected(self, mock_vm_cls):
+        """An absolute STORE_PATH escapes the volume and is refused before mount."""
+        with patch("ppass.cli.load_config", return_value=_config(store_path="/etc/evil")):
+            self.assertEqual(main(["show", "x"]), 1)
+        mock_vm_cls.return_value.ensure_mounted.assert_not_called()
+
+    @patch("ppass.cli.VolumeManager")
+    def test_dotdot_store_path_rejected(self, mock_vm_cls):
+        """A STORE_PATH that climbs out of the volume with '..' is refused."""
+        with patch("ppass.cli.load_config", return_value=_config(store_path="../../etc")):
+            self.assertEqual(main(["show", "x"]), 1)
+        mock_vm_cls.return_value.ensure_mounted.assert_not_called()
+
     def test_help_command_exits_zero(self):
         """`ppass help` prints ppass commands and exits 0 without needing config."""
         import io
