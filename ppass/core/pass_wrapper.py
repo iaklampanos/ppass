@@ -7,6 +7,8 @@ import subprocess
 import sys
 from typing import List, Optional, Tuple
 
+from ppass.core.runtime import secure_env
+
 
 class PassWrapper:
     """Wrapper around the pass password manager."""
@@ -31,9 +33,11 @@ class PassWrapper:
             Tuple of (return_code, stdout, stderr)
         """
         try:
-            import os
-            # Set PASSWORD_STORE_DIR environment variable while preserving existing env
-            env = os.environ.copy()
+            # Set PASSWORD_STORE_DIR while preserving existing env, and replace
+            # PATH with a sanitized one so neither `pass` nor the binary it
+            # resolves to (and its children, e.g. gpg/git) can be hijacked via
+            # an empty/relative or world-writable PATH entry.
+            env = secure_env()
             env["PASSWORD_STORE_DIR"] = self.store_path
             
             cmd = ["pass"] + args
@@ -78,7 +82,8 @@ class PassWrapper:
             result = subprocess.run(
                 ["pass", "--version"],
                 capture_output=True,
-                timeout=5
+                timeout=5,
+                env=secure_env(),
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):

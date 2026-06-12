@@ -29,10 +29,10 @@ import hashlib
 import os
 import subprocess
 import sys
-import tempfile
 import time
 from typing import IO, Optional
 
+from ppass.core.runtime import runtime_dir, secure_env
 from ppass.core.volume import VolumeManager
 
 # How often (seconds) to re-check activity / mount state. Kept small enough to
@@ -52,7 +52,7 @@ def _volume_key(volume_path: str) -> str:
 
 def _lockfile_path(volume_path: str) -> str:
     """Path to the per-volume watcher lockfile."""
-    return os.path.join(tempfile.gettempdir(), f".ppass_{_volume_key(volume_path)}_watcher.lock")
+    return os.path.join(runtime_dir(), f".ppass_{_volume_key(volume_path)}_watcher.lock")
 
 
 def _acquire_lock(volume_path: str) -> Optional[IO]:
@@ -62,7 +62,16 @@ def _acquire_lock(volume_path: str) -> Optional[IO]:
     None if another live watcher already holds it. The lock is released
     automatically when the returned object is closed or the process exits.
     """
-    f = open(_lockfile_path(volume_path), "a")
+    # O_NOFOLLOW: never follow a symlink planted at the predictable lock path.
+    try:
+        fd = os.open(
+            _lockfile_path(volume_path),
+            os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW,
+            0o600,
+        )
+    except OSError:
+        return None
+    f = os.fdopen(fd, "r+")
     try:
         fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
@@ -113,11 +122,20 @@ def spawn_watcher(
         veracrypt_path or "veracrypt",
     ]
     log_path = os.path.join(
-        tempfile.gettempdir(),
+        runtime_dir(),
         f".ppass_{_volume_key(volume_path)}_watcher.log",
     )
     try:
-        log_file = open(log_path, "a")
+        # O_NOFOLLOW (no symlink following), 0o600 (owner-only), and O_TRUNC so
+        # the log starts fresh for each watcher session and cannot grow without
+        # bound across restarts. Only one watcher runs per volume, so truncating
+        # here never discards a live watcher's output.
+        log_fd = os.open(
+            log_path,
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW,
+            0o600,
+        )
+        log_file = os.fdopen(log_fd, "w")
         try:
             subprocess.Popen(
                 cmd,
@@ -125,6 +143,7 @@ def spawn_watcher(
                 stdout=subprocess.DEVNULL,
                 stderr=log_file,
                 start_new_session=True,  # detach from the ppass CLI's session
+                env=secure_env(),        # sanitized PATH for binary resolution
             )
         finally:
             log_file.close()  # parent closes its copy; child keeps its own fd

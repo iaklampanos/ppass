@@ -8,6 +8,7 @@ import subprocess
 import re
 from typing import Optional
 from ppass.platform.base import BasePlatform
+from ppass.core.runtime import secure_env
 
 
 class MacOSPlatform(BasePlatform):
@@ -57,7 +58,8 @@ class MacOSPlatform(BasePlatform):
                 result = subprocess.run(
                     ["diskutil", "mount", device],
                     stdout=subprocess.DEVNULL,
-                    timeout=10
+                    timeout=10,
+                    env=secure_env(),
                 )
                 return result.returncode == 0
 
@@ -77,7 +79,8 @@ class MacOSPlatform(BasePlatform):
             result = subprocess.run(
                 cmd,
                 stdout=subprocess.DEVNULL,
-                timeout=30
+                timeout=30,
+                env=secure_env(),
             )
             return result.returncode == 0
 
@@ -97,7 +100,8 @@ class MacOSPlatform(BasePlatform):
                 ["diskutil", "unmount", self.volume_path],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=10
+                timeout=10,
+                env=secure_env(),
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -117,7 +121,8 @@ class MacOSPlatform(BasePlatform):
                 ["df", "-l"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                env=secure_env(),
             )
 
             for line in result.stdout.split("\n")[1:]:  # skip the header row

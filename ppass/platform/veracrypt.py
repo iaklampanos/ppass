@@ -21,6 +21,7 @@ import subprocess
 from typing import Optional
 
 from ppass.platform.base import BasePlatform
+from ppass.core.runtime import secure_env
 
 
 class VeraCryptPlatform(BasePlatform):
@@ -60,6 +61,7 @@ class VeraCryptPlatform(BasePlatform):
                 capture_output=True,
                 text=True,
                 timeout=10,
+                env=secure_env(),
             )
             return any(
                 self.volume_path in line.split()
@@ -87,6 +89,13 @@ class VeraCryptPlatform(BasePlatform):
         except (EOFError, KeyboardInterrupt):
             return False
 
+        # Hold the passphrase in a mutable buffer and pipe the bytes to
+        # veracrypt --stdin, so it can be zeroed promptly after use instead of
+        # lingering in the heap until garbage collection. (The immutable str
+        # from getpass cannot be wiped; this is best-effort minimization.)
+        pw = bytearray(passphrase.encode("utf-8"))
+        del passphrase
+
         dir_created = not os.path.exists(self.volume_path)
         try:
             os.makedirs(self.volume_path, exist_ok=True)
@@ -99,14 +108,19 @@ class VeraCryptPlatform(BasePlatform):
                     self.image_path,
                     self.volume_path,
                 ],
-                input=passphrase,
+                input=pw,
                 capture_output=True,
-                text=True,
                 timeout=30,
+                env=secure_env(),
             )
             if result.returncode != 0:
-                if result.stderr:
-                    print(result.stderr.strip(), flush=True)
+                err = result.stderr
+                if err:
+                    # stderr is bytes here (no text= decoding); tolerate str too
+                    # so mocked tests that supply a string still work.
+                    if isinstance(err, bytes):
+                        err = err.decode("utf-8", "replace")
+                    print(err.strip(), flush=True)
                 if dir_created:
                     try:
                         os.rmdir(self.volume_path)
@@ -122,6 +136,9 @@ class VeraCryptPlatform(BasePlatform):
                 except OSError:
                     pass
             return False
+        finally:
+            for i in range(len(pw)):
+                pw[i] = 0
 
     def unmount(self) -> bool:
         """Dismount the VeraCrypt volume."""
@@ -131,6 +148,7 @@ class VeraCryptPlatform(BasePlatform):
                 capture_output=True,
                 text=True,
                 timeout=15,
+                env=secure_env(),
             )
             return result.returncode == 0
         except (subprocess.TimeoutExpired, FileNotFoundError):
@@ -144,6 +162,7 @@ class VeraCryptPlatform(BasePlatform):
                 capture_output=True,
                 text=True,
                 timeout=10,
+                env=secure_env(),
             )
             for line in result.stdout.splitlines():
                 if self.volume_path in line.split():

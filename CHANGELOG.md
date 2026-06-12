@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 While the project is in `0.x`, minor versions introduce backward-compatible
 functionality and patch versions cover bug fixes, security, and documentation.
 
+## [0.7.4]
+
+### Security
+- **Auto-unmount could be silently defeated by a corrupt/malicious activity
+  timestamp** (`core/activity.py`): `_load_last_activity()` parsed any float
+  from the persisted activity file. A `nan` made the idle check
+  `elapsed > timeout` always false; `inf` or a far-future timestamp made
+  `elapsed` negative. In every case the inactivity monitor and the watcher's
+  `get_remaining_time()` never fired, leaving the decrypted store mounted
+  indefinitely. The value is now rejected unless finite and no further in the
+  future than a small clock-skew margin.
+- **Predictable temp-file paths in a world-writable directory**
+  (`core/runtime.py`, `core/activity.py`, `watcher.py`): the activity file,
+  watcher lockfile, and watcher log lived directly in the system temp dir with
+  predictable MD5-derived names, inviting symlink/pre-creation attacks by other
+  local users (notably on Linux's sticky `/tmp`). All ppass state now lives in a
+  per-user `0700` directory (`$XDG_RUNTIME_DIR/ppass` or `ppass-<uid>` under the
+  temp dir) that is verified to be owned by the current user. Reads of the
+  activity file and opens of the lockfile/log now also use `O_NOFOLLOW`.
+- **PATH hijacking of external binaries** (`core/pass_wrapper.py`,
+  `platform/*`): `pass`, `veracrypt`, `diskutil`, `hdiutil`, `df`, `mountpoint`,
+  and `umount` were resolved against the inherited `PATH`. Subprocess calls now
+  run with a sanitized `PATH` (`secure_env()`) that drops empty, relative, and
+  world-writable-without-sticky-bit entries, so neither ppass nor the tools it
+  spawns (e.g. `gpg`/`git` via `pass`) can be hijacked through those entries.
+- **Insecure `~/.ppassrc` permissions were not flagged** (`config.py`):
+  `load_config()` now warns when the config file is group/other-accessible
+  (a writable config can redirect ppass at an attacker-controlled volume image
+  or veracrypt binary). `save_config()` already writes it `0o600`.
+- **`STORE_PATH` could silently escape the encrypted volume** (`cli.py`): an
+  absolute `STORE_PATH`, or one containing `..`, made `os.path.join` point
+  `pass` at a location outside the mounted volume — potentially unencrypted.
+  ppass now refuses such a path before mounting.
+- **VeraCrypt passphrase lifetime minimized** (`platform/veracrypt.py`): the
+  passphrase is now held in a mutable buffer, piped to `veracrypt --stdin` as
+  bytes, and zeroed in a `finally` block rather than left for the garbage
+  collector (best-effort, given Python's immutable `str` from `getpass`).
+- **Watcher log hardened** (`watcher.py`): the per-volume log is created
+  `0o600` with `O_NOFOLLOW` and truncated per watcher session so it cannot grow
+  without bound or be redirected via a planted symlink.
+
+### Tests
+- Added `tests/test_runtime.py` (PATH sanitization, private state dir, ownership
+  refusal) and cases for future/NaN/symlink activity timestamps, `STORE_PATH`
+  escape rejection, and the insecure-permission config warning. Total: 110 tests.
+
 ## [0.7.3]
 
 ### Fixed
